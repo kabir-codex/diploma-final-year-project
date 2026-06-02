@@ -1,7 +1,7 @@
 <?php
 // ============================================================
-//  db.php — Database Connection
-//  This file connects PHP to the MySQL database.
+//  db.php — Database Connectio
+// //  This file connects PHP to the MySQL database.
 //  Every other PHP file will include this file first.
 // ============================================================
 
