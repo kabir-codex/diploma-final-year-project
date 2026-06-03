@@ -17,7 +17,7 @@ function count_rows($conn, $table, $condition = '') {
     return (int) $row['total'];
 }
 
-// Run a query and get the first row back
+/ Run a query and get the first row back
 // Useful when you expect just one result (e.g. finding a user by ID)
 function get_one_row($conn, $sql) {
     $result = mysqli_query($conn, $sql);
