@@ -68,7 +68,10 @@ include '../../frontend/assets/header.php';
         </div>
 
         <!-- Two-column layout: login form + demo accounts -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" class="login-grid">
+        <!-- Need when using demo table in the Login_Ui
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" class="login-grid"> -->
+        
+        <div style="display:grid; grid-template-columns:1fr; gap:24px;" class="login-grid">
 
             <!-- LOGIN FORM -->
             <div class="login-box">
