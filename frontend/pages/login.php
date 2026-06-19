@@ -99,8 +99,9 @@ include '../../frontend/assets/header.php';
                 </form>
                 <p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:12px;">Forgot your password? Contact the receptionist.</p>
             </div>
-
-            <!-- DEMO ACCOUNTS TABLE -->
+            
+            
+            <!-- DEMO ACCOUNTS TABLE Commented out for now, but can be useful for testing and demos
             <div class="login-box">
                 <h2>Demo Accounts</h2>
                 <p>Use these to test different portals.</p>
@@ -122,6 +123,7 @@ include '../../frontend/assets/header.php';
                 </div>
             </div>
         </div>
+            -->
 
         <div style="text-align:center; margin-top:16px;">
             <a href="../../index.php" style="color:#bfdbfe; font-size:0.88rem; text-decoration:none;">← Back to Home Page</a>
