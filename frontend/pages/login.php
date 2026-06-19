@@ -104,7 +104,7 @@ include '../../frontend/assets/header.php';
             </div>
             
             
-            <!-- DEMO ACCOUNTS TABLE Commented out for now, but can be useful for testing and demos
+                        <!-- DEMO ACCOUNTS TABLE
             <div class="login-box">
                 <h2>Demo Accounts</h2>
                 <p>Use these to test different portals.</p>
@@ -125,8 +125,8 @@ include '../../frontend/assets/header.php';
                     </table>
                 </div>
             </div>
-        </div>
             -->
+            </div>
 
         <div style="text-align:center; margin-top:16px;">
             <a href="../../index.php" style="color:#bfdbfe; font-size:0.88rem; text-decoration:none;">← Back to Home Page</a>
