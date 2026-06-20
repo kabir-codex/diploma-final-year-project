@@ -139,7 +139,7 @@ $announcements = mysqli_query($conn, "
                 <tbody>
                 <?php if ($child_results && mysqli_num_rows($child_results) > 0):
                     while ($r = mysqli_fetch_assoc($child_results)):
-                        $gc = in_array($r['grade'], ['A','A-']) ? 'badge-green' : ($r['grade'] == 'F' ? 'badge-red' : 'badge-blue');
+                        $gc = in_array($r['grade'], ['A+','A','A-']) ? 'badge-green' : ($r['grade'] == 'E' ? 'badge-red' : 'badge-blue');
                 ?>
                     <tr>
                         <td><?php echo htmlspecialchars($r['subject_name']); ?></td>

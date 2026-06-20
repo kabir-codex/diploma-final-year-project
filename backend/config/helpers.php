@@ -56,6 +56,24 @@ function error_msg($text) {
     return "<div style='background:#fee2e2; color:#991b1b; padding:12px; border-radius:8px; margin-bottom:16px;'>❌ $text</div>";
 }
 
+// Calculate the letter grade for a mark out of 100, using the academy's grading scale.
+// Mirrors the client-side aaCalcGrade() JS function used on the result forms.
+function calc_grade($marks) {
+    $marks = (int) $marks;
+    if ($marks >= 85) return 'A+';
+    if ($marks >= 70) return 'A';
+    if ($marks >= 65) return 'A-';
+    if ($marks >= 60) return 'B+';
+    if ($marks >= 55) return 'B';
+    if ($marks >= 50) return 'B-';
+    if ($marks >= 45) return 'C+';
+    if ($marks >= 40) return 'C';
+    if ($marks >= 35) return 'C-';
+    if ($marks >= 30) return 'D+';
+    if ($marks >= 25) return 'D';
+    return 'E';
+}
+
 // Clean and escape user input to prevent SQL injection
 // Always use this before putting user data into a query
 function clean($conn, $value) {
