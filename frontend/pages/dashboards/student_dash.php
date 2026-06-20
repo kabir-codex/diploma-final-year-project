@@ -67,9 +67,9 @@ $my_results = mysqli_query($conn, "
     ORDER BY r.exam_date DESC
 ");
 
-// My attendance summary per batch
+// My attendance summary per batch (used to compute the overall % per batch)
 $my_attendance = mysqli_query($conn, "
-    SELECT b.batch_name, s.name AS subject_name,
+    SELECT b.id AS batch_id, b.batch_name, s.name AS subject_name,
         COUNT(a.id) AS total,
         SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,
         SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,
@@ -79,6 +79,25 @@ $my_attendance = mysqli_query($conn, "
     JOIN subjects s ON b.subject_id = s.id
     WHERE a.student_id = $user_id
     GROUP BY a.batch_id
+");
+
+// Build a batch_id -> attendance % map from the summary above (for the % column
+// in the detailed records table below)
+$my_attendance_pct  = [];
+$my_attendance_rows = [];
+while ($row = mysqli_fetch_assoc($my_attendance)) {
+    $my_attendance_pct[$row['batch_id']] = $row['total'] > 0 ? round(($row['present'] / $row['total']) * 100) : 0;
+    $my_attendance_rows[] = $row;
+}
+
+// Detailed, per-record attendance (one row per date/batch) for the redesigned table
+$my_attendance_records = mysqli_query($conn, "
+    SELECT a.attend_date, a.status, b.id AS batch_id, b.batch_name, s.name AS subject_name
+    FROM attendance a
+    JOIN batches b ON a.batch_id = b.id
+    JOIN subjects s ON b.subject_id = s.id
+    WHERE a.student_id = $user_id
+    ORDER BY a.attend_date DESC
 ");
 
 // My performance points
@@ -210,34 +229,95 @@ $materials = mysqli_query($conn, "
         <!-- MY ATTENDANCE -->
         <div id="attendance" class="panel">
             <div class="panel-title">✅ My Attendance Summary</div>
-            <div class="table-wrapper"><table>
-                <thead><tr><th>Subject</th><th>Batch</th><th>Total Classes</th><th>Present</th><th>Absent</th><th>Late</th><th>Attendance %</th></tr></thead>
-                <tbody>
-                <?php if ($my_attendance && mysqli_num_rows($my_attendance) > 0):
-                    while ($at = mysqli_fetch_assoc($my_attendance)):
-                        $pct = $at['total'] > 0 ? round(($at['present'] / $at['total']) * 100) : 0;
-                        $bar = $pct >= 80 ? 'green' : ($pct >= 60 ? '' : 'orange');
+
+            <!-- Quick per-batch overview cards -->
+            <?php if (!empty($my_attendance_rows)): ?>
+            <div class="card-grid" style="margin-bottom:24px;">
+                <?php foreach ($my_attendance_rows as $at):
+                    $pct = $at['total'] > 0 ? round(($at['present'] / $at['total']) * 100) : 0;
+                    $bar = $pct >= 80 ? 'green' : ($pct >= 60 ? '' : 'orange');
                 ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($at['subject_name']); ?></td>
-                        <td><?php echo htmlspecialchars($at['batch_name']); ?></td>
-                        <td style="text-align:center;"><?php echo $at['total']; ?></td>
-                        <td style="color:#16a34a; font-weight:600; text-align:center;"><?php echo $at['present']; ?></td>
-                        <td style="color:#dc2626; font-weight:600; text-align:center;"><?php echo $at['absent']; ?></td>
-                        <td style="color:#d97706; font-weight:600; text-align:center;"><?php echo $at['late']; ?></td>
-                        <td>
-                            <div style="display:flex; align-items:center; gap:8px;">
-                                <div style="flex:1;"><div class="progress-bar-wrapper"><div class="progress-bar-fill <?php echo $bar; ?>" style="width:<?php echo $pct; ?>%;"></div></div></div>
-                                <strong style="font-size:.85rem;"><?php echo $pct; ?>%</strong>
-                            </div>
-                        </td>
+                    <div class="card">
+                        <h3 style="font-size:0.92rem;"><?php echo htmlspecialchars($at['subject_name']); ?> — <?php echo htmlspecialchars($at['batch_name']); ?></h3>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+                            <div style="flex:1;"><div class="progress-bar-wrapper"><div class="progress-bar-fill <?php echo $bar; ?>" style="width:<?php echo $pct; ?>%;"></div></div></div>
+                            <strong style="font-size:.85rem;"><?php echo $pct; ?>%</strong>
+                        </div>
+                        <p style="font-size:0.78rem; color:#64748b; margin-top:6px;">
+                            <?php echo $at['present']; ?> present · <?php echo $at['absent']; ?> absent · <?php echo $at['late']; ?> late · <?php echo $at['total']; ?> total
+                        </p>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
+            <!-- Filter + Search -->
+            <div class="form-row" style="margin-bottom:14px;">
+                <div class="form-group">
+                    <label>Filter by Batch</label>
+                    <select id="stu_att_batch_filter">
+                        <option value="">All Batches</option>
+                        <?php foreach ($my_attendance_rows as $at): ?>
+                            <option value="<?php echo $at['batch_id']; ?>"><?php echo htmlspecialchars($at['batch_name']); ?> – <?php echo htmlspecialchars($at['subject_name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Search</label>
+                    <input type="text" id="stu_att_search" placeholder="Search by batch or subject...">
+                </div>
+            </div>
+
+            <!-- Detailed per-record table -->
+            <div class="table-wrapper"><table id="stu_att_records_table">
+                <thead><tr><th>Batch</th><th>Subject</th><th>Date</th><th>Attendance Status</th><th>Attendance %</th></tr></thead>
+                <tbody>
+                <?php if (!$my_attendance_records || mysqli_num_rows($my_attendance_records) == 0): ?>
+                    <tr><td colspan="5" style="text-align:center; color:#64748b;">No attendance records yet.</td></tr>
+                <?php else: while ($ar = mysqli_fetch_assoc($my_attendance_records)):
+                    $status_badge = $ar['status'] == 'present' ? 'badge-green' : ($ar['status'] == 'absent' ? 'badge-red' : 'badge-yellow');
+                    $status_icon  = $ar['status'] == 'present' ? '✅' : ($ar['status'] == 'absent' ? '❌' : '⏰');
+                    $row_pct      = $my_attendance_pct[$ar['batch_id']] ?? 0;
+                ?>
+                    <tr data-batch-id="<?php echo $ar['batch_id']; ?>" data-search="<?php echo htmlspecialchars(strtolower($ar['batch_name'] . ' ' . $ar['subject_name'])); ?>">
+                        <td><?php echo htmlspecialchars($ar['batch_name']); ?></td>
+                        <td><?php echo htmlspecialchars($ar['subject_name']); ?></td>
+                        <td style="font-size:0.85rem;"><?php echo date('d M Y', strtotime($ar['attend_date'])); ?></td>
+                        <td><span class="badge <?php echo $status_badge; ?>"><?php echo $status_icon . ' ' . ucfirst($ar['status']); ?></span></td>
+                        <td><strong style="font-size:.85rem;"><?php echo $row_pct; ?>%</strong></td>
                     </tr>
-                <?php endwhile; else: ?>
-                    <tr><td colspan="7" style="text-align:center; color:#64748b;">No attendance records yet.</td></tr>
-                <?php endif; ?>
+                <?php endwhile; endif; ?>
                 </tbody>
             </table></div>
+            <p id="stu_att_records_empty" style="text-align:center; color:#64748b; padding:14px; display:none;">No matching attendance records.</p>
         </div>
+
+        <script>
+        (function() {
+            var batchFilter = document.getElementById('stu_att_batch_filter');
+            var search      = document.getElementById('stu_att_search');
+            var table       = document.getElementById('stu_att_records_table');
+            if (!batchFilter || !search || !table) return;
+            var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-batch-id]'));
+
+            function applyFilter() {
+                var batchVal = batchFilter.value;
+                var term     = search.value.trim().toLowerCase();
+                var visible  = 0;
+                rows.forEach(function(row) {
+                    var matchesBatch = !batchVal || row.getAttribute('data-batch-id') === batchVal;
+                    var matchesTerm  = !term || row.getAttribute('data-search').indexOf(term) !== -1;
+                    var show = matchesBatch && matchesTerm;
+                    row.style.display = show ? '' : 'none';
+                    if (show) visible++;
+                });
+                var emptyMsg = document.getElementById('stu_att_records_empty');
+                if (emptyMsg) emptyMsg.style.display = (rows.length > 0 && visible === 0) ? '' : 'none';
+            }
+            batchFilter.addEventListener('change', applyFilter);
+            search.addEventListener('input', applyFilter);
+        })();
+        </script>
 
         <!-- MY PERFORMANCE POINTS -->
         <div id="points" class="panel">
