@@ -19,5 +19,6 @@ if ($id > 0 && in_array($action, ['approve', 'reject'])) {
     mysqli_query($conn, "UPDATE payments SET status='$status' WHERE id=$id");
 }
 
-header("Location: ../../../frontend/pages/dashboard.php?msg=Payment+" . ucfirst($action) . "d");
+$status_word = ($action == 'approve') ? 'Approved' : 'Rejected';
+header("Location: ../../../frontend/pages/dashboard.php?msg=Payment+" . $status_word);
 exit();
