@@ -116,6 +116,16 @@ if (isset($_POST['att_batch_id'])) $selected_batch_id = (int)$_POST['att_batch_i
 // Students in the selected batch
 $students_result = mysqli_query($conn, "SELECT u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id WHERE e.batch_id = $selected_batch_id AND e.status = 'active' ORDER BY u.full_name");
 
+// Attendance records this lecturer has marked, across all their batches (most recent first)
+$my_attendance_records = mysqli_query($conn, "
+    SELECT a.id, a.attend_date, a.status, b.id AS batch_id, b.batch_name, u.full_name AS student_name
+    FROM attendance a
+    JOIN batches b ON a.batch_id = b.id
+    JOIN users u ON a.student_id = u.id
+    WHERE a.marked_by = $user_id
+    ORDER BY a.attend_date DESC, b.batch_name, u.full_name
+");
+
 // All students in this lecturer's batches (for dropdowns)
 $all_students = mysqli_query($conn, "SELECT DISTINCT u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id JOIN batches b ON e.batch_id = b.id WHERE b.lecturer_id = $user_id ORDER BY u.full_name");
 
@@ -224,7 +234,75 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                     <p style="color:#64748b;">No students enrolled in this batch.</p>
                 <?php endif; ?>
             </form>
+
+            <!-- SAVED ATTENDANCE RECORDS -->
+            <div style="margin-top:28px;">
+                <p style="font-weight:600; color:#1a3a5c; margin-bottom:10px;">My Saved Attendance Records</p>
+
+                <div class="form-row" style="margin-bottom:14px;">
+                    <div class="form-group">
+                        <label>Filter by Batch</label>
+                        <select id="att_record_batch_filter">
+                            <option value="">All Batches</option>
+                            <?php foreach ($batch_rows as $b): ?>
+                                <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Search Student</label>
+                        <input type="text" id="att_record_search" placeholder="Type a student name...">
+                    </div>
+                </div>
+
+                <div class="table-wrapper"><table id="att_records_table">
+                    <thead><tr><th>Batch Name</th><th>Student Name</th><th>Date</th><th>Attendance Status</th></tr></thead>
+                    <tbody>
+                    <?php if (!$my_attendance_records || mysqli_num_rows($my_attendance_records) == 0): ?>
+                        <tr><td colspan="4" style="text-align:center; color:#64748b;">No attendance records saved yet.</td></tr>
+                    <?php else: while ($ar = mysqli_fetch_assoc($my_attendance_records)):
+                        $status_badge = $ar['status'] == 'present' ? 'badge-green' : ($ar['status'] == 'absent' ? 'badge-red' : 'badge-yellow');
+                        $status_icon  = $ar['status'] == 'present' ? '✅' : ($ar['status'] == 'absent' ? '❌' : '⏰');
+                    ?>
+                        <tr data-batch-id="<?php echo $ar['batch_id']; ?>" data-student-name="<?php echo htmlspecialchars(strtolower($ar['student_name'])); ?>">
+                            <td><?php echo htmlspecialchars($ar['batch_name']); ?></td>
+                            <td><?php echo htmlspecialchars($ar['student_name']); ?></td>
+                            <td style="font-size:0.85rem;"><?php echo date('d M Y', strtotime($ar['attend_date'])); ?></td>
+                            <td><span class="badge <?php echo $status_badge; ?>"><?php echo $status_icon . ' ' . ucfirst($ar['status']); ?></span></td>
+                        </tr>
+                    <?php endwhile; endif; ?>
+                    </tbody>
+                </table></div>
+                <p id="att_records_empty" style="text-align:center; color:#64748b; padding:14px; display:none;">No matching attendance records.</p>
+            </div>
         </div>
+
+        <script>
+        (function() {
+            var batchFilter = document.getElementById('att_record_batch_filter');
+            var search      = document.getElementById('att_record_search');
+            var table       = document.getElementById('att_records_table');
+            if (!batchFilter || !search || !table) return;
+            var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-batch-id]'));
+
+            function applyFilter() {
+                var batchVal = batchFilter.value;
+                var term     = search.value.trim().toLowerCase();
+                var visible  = 0;
+                rows.forEach(function(row) {
+                    var matchesBatch = !batchVal || row.getAttribute('data-batch-id') === batchVal;
+                    var matchesName  = !term || row.getAttribute('data-student-name').indexOf(term) !== -1;
+                    var show = matchesBatch && matchesName;
+                    row.style.display = show ? '' : 'none';
+                    if (show) visible++;
+                });
+                var emptyMsg = document.getElementById('att_records_empty');
+                if (emptyMsg) emptyMsg.style.display = (rows.length > 0 && visible === 0) ? '' : 'none';
+            }
+            batchFilter.addEventListener('change', applyFilter);
+            search.addEventListener('input', applyFilter);
+        })();
+        </script>
 
         <!-- UPLOAD EXAM RESULT -->
         <div id="results" class="panel">
