@@ -111,10 +111,11 @@ include '../../frontend/assets/header.php';
                 </div>
                 <div class="form-group">
                     <label>Password</label>
-                    <div class="password-field-wrap">
-                        <input type="password" name="password" id="login_password" placeholder="Enter your password" required>
-                        <button type="button" class="password-toggle-btn" onclick="aaTogglePassword()" id="login_password_toggle" aria-label="Show password">👁️</button>
-                    </div>
+                    <input type="password" name="password" id="login_password" placeholder="Enter your password" required>
+                    <label class="show-password-check">
+                        <input type="checkbox" id="login_password_checkbox" onchange="aaTogglePassword()">
+                        Show Password
+                    </label>
                 </div>
                 <button type="submit" class="btn btn-primary" style="width:100%; padding:13px; font-size:1rem; border:none; cursor:pointer;">
                     Login →
@@ -131,17 +132,9 @@ include '../../frontend/assets/header.php';
 
 <script>
 function aaTogglePassword() {
-    var input = document.getElementById('login_password');
-    var btn   = document.getElementById('login_password_toggle');
-    if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '🙈';
-        btn.setAttribute('aria-label', 'Hide password');
-    } else {
-        input.type = 'password';
-        btn.textContent = '👁️';
-        btn.setAttribute('aria-label', 'Show password');
-    }
+    var input    = document.getElementById('login_password');
+    var checkbox = document.getElementById('login_password_checkbox');
+    input.type = checkbox.checked ? 'text' : 'password';
 }
 </script>
 
