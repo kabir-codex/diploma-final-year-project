@@ -270,21 +270,19 @@ $materials = mysqli_query($conn, "
 
             <!-- Detailed per-record table -->
             <div class="table-wrapper"><table id="stu_att_records_table">
-                <thead><tr><th>Batch</th><th>Subject</th><th>Date</th><th>Attendance Status</th><th>Attendance %</th></tr></thead>
+                <thead><tr><th>Batch</th><th>Subject</th><th>Date</th><th>Attendance Status</th></tr></thead>
                 <tbody>
                 <?php if (!$my_attendance_records || mysqli_num_rows($my_attendance_records) == 0): ?>
-                    <tr><td colspan="5" style="text-align:center; color:#64748b;">No attendance records yet.</td></tr>
+                    <tr><td colspan="4" style="text-align:center; color:#64748b;">No attendance records yet.</td></tr>
                 <?php else: while ($ar = mysqli_fetch_assoc($my_attendance_records)):
                     $status_badge = $ar['status'] == 'present' ? 'badge-green' : ($ar['status'] == 'absent' ? 'badge-red' : 'badge-yellow');
                     $status_icon  = $ar['status'] == 'present' ? '✅' : ($ar['status'] == 'absent' ? '❌' : '⏰');
-                    $row_pct      = $my_attendance_pct[$ar['batch_id']] ?? 0;
                 ?>
                     <tr data-batch-id="<?php echo $ar['batch_id']; ?>" data-search="<?php echo htmlspecialchars(strtolower($ar['batch_name'] . ' ' . $ar['subject_name'])); ?>">
                         <td><?php echo htmlspecialchars($ar['batch_name']); ?></td>
                         <td><?php echo htmlspecialchars($ar['subject_name']); ?></td>
                         <td style="font-size:0.85rem;"><?php echo date('d M Y', strtotime($ar['attend_date'])); ?></td>
                         <td><span class="badge <?php echo $status_badge; ?>"><?php echo $status_icon . ' ' . ucfirst($ar['status']); ?></span></td>
-                        <td><strong style="font-size:.85rem;"><?php echo $row_pct; ?>%</strong></td>
                     </tr>
                 <?php endwhile; endif; ?>
                 </tbody>
