@@ -6,7 +6,14 @@
     <!-- Page title is set by each individual page before including this file -->
     <title><?php echo $page_title; ?> - Activate Academy</title>
     <!-- CSS path is set by each page (different depth = different path) -->
-    <link rel="stylesheet" href="<?php echo $css_path; ?>">
+    <?php
+    // Cache-bust the stylesheet using its last-modified time, so the browser
+    // always fetches the latest CSS right after we deploy a change, instead of
+    // serving a stale cached copy that's missing new classes/rules.
+    $css_file_path = __DIR__ . '/../../' . ltrim(str_replace($root_path, '', $css_path), '/');
+    $css_version   = file_exists($css_file_path) ? filemtime($css_file_path) : time();
+    ?>
+    <link rel="stylesheet" href="<?php echo $css_path; ?>?v=<?php echo $css_version; ?>">
 </head>
 <body>
 
