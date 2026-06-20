@@ -133,6 +133,8 @@ input[type="date"],input[type="month"],input[type="file"],select,textarea {
 }
 input:focus,select:focus,textarea:focus { outline:none; border-color:var(--primary-light); background:white; }
 .form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.input-error { border-color:#dc2626 !important; background:#fef2f2; }
+.field-error { display:block; color:#dc2626; font-size:0.78rem; margin-top:4px; }
 
 /* DASHBOARD LAYOUT */
 .dashboard-wrapper { display:flex; min-height:calc(100vh - 64px); }
