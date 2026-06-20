@@ -87,13 +87,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_result'])) {
 
 // --- PERFORMANCE POINTS: Award ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['award_points'])) {
-    $pt_student = (int)$_POST['pt_student_id'];
-    $pt_batch   = (int)$_POST['pt_batch_id'];
+    $pt_student = (int)($_POST['pt_student_id'] ?? 0);
+    $pt_batch   = (int)($_POST['pt_batch_id'] ?? 0);
     $pt_points  = (int)$_POST['pt_points'];
     $pt_reason  = mysqli_real_escape_string($conn, $_POST['pt_reason']);
     $pt_date    = date('Y-m-d');
-    if (!$pt_student || $pt_points <= 0) {
-        $pts_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ Select a student and enter valid points.</div>";
+    if (!$pt_batch || !$pt_student || $pt_points <= 0) {
+        $pts_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ Select a batch, a student, and enter valid points.</div>";
     } else {
         $ok = mysqli_query($conn, "INSERT INTO performance_points (student_id, awarded_by, batch_id, points, reason, award_date) VALUES ($pt_student, $user_id, $pt_batch, $pt_points, '$pt_reason', '$pt_date')");
         $pts_msg = $ok
@@ -134,6 +134,13 @@ $my_results = mysqli_query($conn, "SELECT r.*, u.full_name AS student_name, b.ba
 
 // Recently awarded points
 $my_points = mysqli_query($conn, "SELECT pp.*, u.full_name AS student_name, b.batch_name FROM performance_points pp JOIN users u ON pp.student_id = u.id LEFT JOIN batches b ON pp.batch_id = b.id WHERE pp.awarded_by = $user_id ORDER BY pp.id DESC LIMIT 10");
+
+// Students grouped by batch (for the Award Performance Points batch -> student filter)
+$pt_batch_students = [];
+$pt_bs_result = mysqli_query($conn, "SELECT e.batch_id, u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id JOIN batches b ON e.batch_id = b.id WHERE b.lecturer_id = $user_id AND e.status = 'active' ORDER BY u.full_name");
+while ($pbs = mysqli_fetch_assoc($pt_bs_result)) {
+    $pt_batch_students[$pbs['batch_id']][] = ['id' => $pbs['id'], 'name' => $pbs['full_name']];
+}
 
 // Class links uploaded by this lecturer
 $my_links = mysqli_query($conn, "SELECT cl.*, b.batch_name FROM class_links cl LEFT JOIN batches b ON cl.batch_id = b.id WHERE cl.lecturer_id = $user_id ORDER BY cl.class_date DESC");
@@ -412,22 +419,18 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
             <form method="POST" action="dashboard.php#points" style="max-width:520px;">
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Student *</label>
-                        <select name="pt_student_id" required>
-                            <option value="">-- Select --</option>
-                            <?php $stu_dd2 = mysqli_query($conn, "SELECT DISTINCT u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id JOIN batches b ON e.batch_id = b.id WHERE b.lecturer_id = $user_id ORDER BY u.full_name");
-                            while ($s = mysqli_fetch_assoc($stu_dd2)): ?>
-                                <option value="<?php echo $s['id']; ?>"><?php echo $s['full_name']; ?></option>
-                            <?php endwhile; ?>
+                        <label>Batch *</label>
+                        <select name="pt_batch_id" id="pt_batch_select" required onchange="aaUpdatePtStudents()">
+                            <option value="">-- Select Batch --</option>
+                            <?php foreach ($batch_rows as $b): ?>
+                                <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Batch</label>
-                        <select name="pt_batch_id">
-                            <option value="">-- Select --</option>
-                            <?php foreach ($batch_rows as $b): ?>
-                                <option value="<?php echo $b['id']; ?>"><?php echo $b['batch_name']; ?></option>
-                            <?php endforeach; ?>
+                        <label>Student *</label>
+                        <select name="pt_student_id" id="pt_student_select" required disabled>
+                            <option value="">-- Select Batch First --</option>
                         </select>
                     </div>
                 </div>
@@ -437,6 +440,28 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                 </div>
                 <button type="submit" name="award_points" class="btn btn-primary">⭐ Award Points</button>
             </form>
+            <script>
+            var aaPtBatchStudents = <?php echo json_encode($pt_batch_students); ?>;
+            function aaUpdatePtStudents() {
+                var batchId  = document.getElementById('pt_batch_select').value;
+                var studentSelect = document.getElementById('pt_student_select');
+                studentSelect.innerHTML = '';
+                var students = aaPtBatchStudents[batchId] || [];
+                if (!batchId) {
+                    studentSelect.appendChild(new Option('-- Select Batch First --', ''));
+                    studentSelect.disabled = true;
+                } else if (students.length === 0) {
+                    studentSelect.appendChild(new Option('-- No students in this batch --', ''));
+                    studentSelect.disabled = true;
+                } else {
+                    studentSelect.appendChild(new Option('-- Select --', ''));
+                    students.forEach(function(s) {
+                        studentSelect.appendChild(new Option(s.name, s.id));
+                    });
+                    studentSelect.disabled = false;
+                }
+            }
+            </script>
 
             <!-- Recently Awarded Points Table -->
             <div style="margin-top:20px;">
