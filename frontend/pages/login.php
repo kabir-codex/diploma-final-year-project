@@ -81,7 +81,7 @@ include '../../frontend/assets/header.php';
 
 <!-- Login Page Layout -->
 <div class="login-page">
-    <div style="width:100%; max-width:900px;">
+    <div class="login-card-wrap">
 
         <!-- Title -->
         <div style="text-align:center; margin-bottom:24px;">
@@ -89,66 +89,39 @@ include '../../frontend/assets/header.php';
             <p style="color:#bfdbfe;">Institute Management System – Login Portal</p>
         </div>
 
-        <!-- Two-column layout: login form + demo accounts -->
-        <!-- Need when using demo table in the Login_Ui
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;" class="login-grid"> -->
-        
-        <div style="display:grid; grid-template-columns:1fr; gap:24px;" class="login-grid">
+        <!-- LOGIN FORM -->
+        <div class="login-box">
+            <div class="login-icon-badge">🔐</div>
+            <h2 style="text-align:center;">Welcome Back</h2>
+            <p style="text-align:center;">Enter your credentials to access your portal.</p>
 
-            <!-- LOGIN FORM -->
-            <div class="login-box">
-                <h2>Sign In</h2>
-                <p>Enter your credentials to access your portal.</p>
-
-                <!-- Show error if login failed -->
-                <?php if ($error): ?>
-                    <div style="background:#fee2e2; color:#991b1b; padding:10px 14px; border-radius:7px; margin-bottom:16px; font-size:0.88rem;">
-                        <?php echo $error; ?>
-                    </div>
-                <?php endif; ?>
-
-                <form method="POST" action="login.php">
-                    <div class="form-group">
-                        <label>Username</label>
-                        <!-- Keep the typed username if login fails -->
-                        <input type="text" name="username" placeholder="Enter your username"
-                               value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" name="password" placeholder="Enter your password" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary" style="width:100%; padding:13px; font-size:1rem; border:none; cursor:pointer;">
-                        Login →
-                    </button>
-                </form>
-                <p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:12px;">Forgot your password? Contact the receptionist.</p>
-            </div>
-            
-            
-                        <!-- DEMO ACCOUNTS TABLE
-            <div class="login-box">
-                <h2>Demo Accounts</h2>
-                <p>Use these to test different portals.</p>
-                <div class="table-wrapper" style="box-shadow:none; margin-top:0; border-radius:8px;">
-                    <table style="font-size:0.82rem;">
-                        <thead><tr><th>Username</th><th>Password</th><th>Role</th></tr></thead>
-                        <tbody>
-                            <tr><td>admin</td><td>admin123</td><td>Admin</td></tr>
-                            <tr><td>manager</td><td>manager123</td><td>Manager</td></tr>
-                            <tr><td>director</td><td>director123</td><td>Director</td></tr>
-                            <tr><td>lec_math</td><td>math123</td><td>Math Lecturer</td></tr>
-                            <tr><td>lec_eng</td><td>eng123</td><td>Eng Lecturer</td></tr>
-                            <tr><td>receptionist</td><td>recep123</td><td>Receptionist</td></tr>
-                            <tr><td>student1</td><td>kabir123</td><td>Student</td></tr>
-                            <tr><td>student2</td><td>ishfaq123</td><td>Student</td></tr>
-                            <tr><td>parent1</td><td>parent123</td><td>Parent</td></tr>
-                        </tbody>
-                    </table>
+            <!-- Show error if login failed -->
+            <?php if ($error): ?>
+                <div style="background:#fee2e2; color:#991b1b; padding:10px 14px; border-radius:7px; margin-bottom:16px; font-size:0.88rem;">
+                    <?php echo $error; ?>
                 </div>
-            </div>
-            -->
-            </div>
+            <?php endif; ?>
+
+            <form method="POST" action="login.php">
+                <div class="form-group">
+                    <label>Username</label>
+                    <!-- Keep the typed username if login fails -->
+                    <input type="text" name="username" placeholder="Enter your username"
+                           value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="password-field-wrap">
+                        <input type="password" name="password" id="login_password" placeholder="Enter your password" required>
+                        <button type="button" class="password-toggle-btn" onclick="aaTogglePassword()" id="login_password_toggle" aria-label="Show password">👁️</button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%; padding:13px; font-size:1rem; border:none; cursor:pointer;">
+                    Login →
+                </button>
+            </form>
+            <p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:12px;">Forgot your password? Contact the receptionist.</p>
+        </div>
 
         <div style="text-align:center; margin-top:16px;">
             <a href="../../index.php" style="color:#bfdbfe; font-size:0.88rem; text-decoration:none;">← Back to Home Page</a>
@@ -156,7 +129,21 @@ include '../../frontend/assets/header.php';
     </div>
 </div>
 
-<style>@media (max-width:768px) { .login-grid { grid-template-columns:1fr !important; } }</style>
+<script>
+function aaTogglePassword() {
+    var input = document.getElementById('login_password');
+    var btn   = document.getElementById('login_password_toggle');
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '🙈';
+        btn.setAttribute('aria-label', 'Hide password');
+    } else {
+        input.type = 'password';
+        btn.textContent = '👁️';
+        btn.setAttribute('aria-label', 'Show password');
+    }
+}
+</script>
 
 <?php
 mysqli_close($conn);
