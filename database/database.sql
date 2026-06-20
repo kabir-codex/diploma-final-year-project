@@ -46,7 +46,7 @@ USE activate_academy_db;
 CREATE TABLE IF NOT EXISTS users (
     id         INT AUTO_INCREMENT PRIMARY KEY,  -- Unique number for each user
     username   VARCHAR(60)  NOT NULL UNIQUE,    -- Login username (must be unique)
-    password   VARCHAR(255) NOT NULL,           -- Login password (plain text for demo)
+    password   VARCHAR(255) NOT NULL,           -- Hashed with password_hash() (see seed note below)
     full_name  VARCHAR(120) NOT NULL,           -- Display name
     email      VARCHAR(120),
     phone      VARCHAR(30),

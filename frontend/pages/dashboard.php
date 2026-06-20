@@ -7,6 +7,14 @@
 // ============================================================
 
 session_start();
+
+// Prevent the browser from caching this page. Without this, navigating back
+// to the dashboard (e.g. after adding a user) can show a stale cached copy
+// that doesn't include the new record yet, making it look like the database
+// wasn't updated when it actually was.
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Pragma: no-cache");
+
 require '../../backend/config/db.php';
 require '../../backend/config/helpers.php';
 
