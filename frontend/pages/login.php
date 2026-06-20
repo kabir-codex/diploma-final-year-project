@@ -81,19 +81,39 @@ include '../../frontend/assets/header.php';
 
 <!-- Login Page Layout -->
 <div class="login-page">
-    <div class="login-card-wrap">
 
-        <!-- Title -->
-        <div style="text-align:center; margin-bottom:24px;">
-            <h1 style="color:white; font-size:1.8rem; font-weight:800;">🎓 Activate Academy</h1>
-            <p style="color:#bfdbfe;">Institute Management System – Login Portal</p>
-        </div>
+    <!-- LEFT: Branding / Illustration panel -->
+    <div class="login-split-left">
+        <svg class="login-illustration" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="140" cy="140" r="130" fill="rgba(255,255,255,0.08)"/>
+            <circle cx="140" cy="140" r="98" fill="rgba(255,255,255,0.10)"/>
+            <!-- Open book -->
+            <path d="M40 150 L140 130 L240 150 L240 195 L140 178 L40 195 Z" fill="#ffffff" opacity="0.95"/>
+            <path d="M140 130 L140 178" stroke="#cbd5e1" stroke-width="2"/>
+            <path d="M55 158 L130 144" stroke="#cbd5e1" stroke-width="2"/>
+            <path d="M55 172 L130 160" stroke="#cbd5e1" stroke-width="2"/>
+            <path d="M150 144 L225 158" stroke="#cbd5e1" stroke-width="2"/>
+            <path d="M150 160 L225 172" stroke="#cbd5e1" stroke-width="2"/>
+            <!-- Graduation cap -->
+            <path d="M140 70 L210 100 L140 130 L70 100 Z" fill="#f59e0b"/>
+            <path d="M105 108 L105 132 C105 140 175 140 175 132 L175 108" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="208" cy="100" r="4" fill="#f59e0b"/>
+            <path d="M208 100 L208 124" stroke="#f59e0b" stroke-width="3"/>
+            <circle cx="208" cy="128" r="5" fill="#f59e0b"/>
+            <!-- Decorative dots -->
+            <circle cx="55" cy="90" r="4" fill="#ffffff" opacity="0.7"/>
+            <circle cx="230" cy="200" r="5" fill="#ffffff" opacity="0.6"/>
+            <circle cx="75" cy="220" r="3" fill="#ffffff" opacity="0.6"/>
+        </svg>
+        <h1 class="login-brand-title">🎓 Activate Academy</h1>
+        <p class="login-brand-tag">Institute Management System</p>
+    </div>
 
-        <!-- LOGIN FORM -->
-        <div class="login-box">
-            <div class="login-icon-badge">🔐</div>
-            <h2 style="text-align:center;">Welcome Back</h2>
-            <p style="text-align:center;">Enter your credentials to access your portal.</p>
+    <!-- RIGHT: Login form panel -->
+    <div class="login-split-right">
+        <div class="login-form-card">
+            <h2>Welcome Back</h2>
+            <p>Enter your details to sign in to your account</p>
 
             <!-- Show error if login failed -->
             <?php if ($error): ?>
@@ -121,11 +141,8 @@ include '../../frontend/assets/header.php';
                     Login →
                 </button>
             </form>
-            <p style="font-size:0.75rem; color:#94a3b8; text-align:center; margin-top:12px;">Forgot your password? Contact the receptionist.</p>
-        </div>
-
-        <div style="text-align:center; margin-top:16px;">
-            <a href="../../index.php" style="color:#bfdbfe; font-size:0.88rem; text-decoration:none;">← Back to Home Page</a>
+            <p class="login-footnote">Forgot your password? Contact the receptionist.</p>
+            <p class="login-footnote"><a href="../../index.php">← Back to Home Page</a></p>
         </div>
     </div>
 </div>
