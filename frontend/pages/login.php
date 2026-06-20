@@ -26,16 +26,38 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "Please enter both username and password.";
     } else {
         // Escape the input to prevent SQL injection
-        $username = mysqli_real_escape_string($conn, $username);
-        $password = mysqli_real_escape_string($conn, $password);
+        $username_safe = mysqli_real_escape_string($conn, $username);
 
-        // Look for a matching active user in the database
-        $sql    = "SELECT * FROM users WHERE username='$username' AND password='$password' AND status='active'";
+        // Look up the user by username only — the password is checked in PHP below,
+        // never compared directly in the SQL query.
+        $sql    = "SELECT * FROM users WHERE username='$username_safe' AND status='active'";
         $result = mysqli_query($conn, $sql);
 
-        if (mysqli_num_rows($result) == 1) {
+        $login_ok = false;
+        $user     = ($result && mysqli_num_rows($result) == 1) ? mysqli_fetch_assoc($result) : null;
+
+        if ($user) {
+            $stored = $user['password'];
+
+            // password_hash() output always starts with $2y$, $2a$, or $2b$ (bcrypt).
+            // If the stored value already looks like a hash, verify against it normally.
+            if (preg_match('/^\$2[aby]\$/', $stored)) {
+                $login_ok = password_verify($password, $stored);
+            } else {
+                // Legacy plain-text password (e.g. demo data from database.sql).
+                // Compare directly, and if it matches, transparently upgrade it to
+                // a proper bcrypt hash so it never has to be checked in plain text again.
+                if (hash_equals($stored, $password)) {
+                    $login_ok  = true;
+                    $new_hash  = password_hash($password, PASSWORD_DEFAULT);
+                    $uid       = (int)$user['id'];
+                    mysqli_query($conn, "UPDATE users SET password='" . mysqli_real_escape_string($conn, $new_hash) . "' WHERE id=$uid");
+                }
+            }
+        }
+
+        if ($login_ok) {
             // User found — save their info in the session
-            $user = mysqli_fetch_assoc($result);
             $_SESSION['user_id']   = $user['id'];
             $_SESSION['username']  = $user['username'];
             $_SESSION['full_name'] = $user['full_name'];

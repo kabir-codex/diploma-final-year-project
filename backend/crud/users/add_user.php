@@ -17,15 +17,16 @@ $error = $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Collect and clean inputs
-    $username = mysqli_real_escape_string($conn, trim($_POST['username']));
-    $password = mysqli_real_escape_string($conn, trim($_POST['password']));
+    $username      = mysqli_real_escape_string($conn, trim($_POST['username']));
+    $password_raw  = trim($_POST['password']);
+    $password      = mysqli_real_escape_string($conn, password_hash($password_raw, PASSWORD_DEFAULT));
     $fullname = mysqli_real_escape_string($conn, trim($_POST['full_name']));
     $email    = mysqli_real_escape_string($conn, trim($_POST['email']));
     $phone    = mysqli_real_escape_string($conn, trim($_POST['phone']));
     $role     = mysqli_real_escape_string($conn, $_POST['role']);
     $status   = mysqli_real_escape_string($conn, $_POST['status']);
 
-    if (empty($username) || empty($password) || empty($fullname) || empty($role)) {
+    if (empty($username) || empty($password_raw) || empty($fullname) || empty($role)) {
         $error = "Username, password, name and role are required.";
     } else {
         // Check if username already taken

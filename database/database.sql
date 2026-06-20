@@ -247,6 +247,11 @@ CREATE TABLE IF NOT EXISTS parent_student (
 
 
 -- ---- USERS ----
+-- NOTE: Passwords below are seeded as plain text on purpose for easy setup/demo.
+-- login.php now hashes passwords with PHP's password_hash() / password_verify().
+-- The first time each demo account logs in, login.php detects the plain-text
+-- password, verifies it, and automatically rewrites it as a bcrypt hash in the
+-- database. No manual migration step is required.
 INSERT INTO users (username, password, full_name, email, phone, role, status) VALUES
 -- Admin
 ('admin',        'admin123',    'Admin User',           'admin@activateacademy.lk',        '0771000001', 'admin',        'active'),

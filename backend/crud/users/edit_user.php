@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Only update password if a new one is entered
     $pass_sql = '';
     if (!empty(trim($_POST['password']))) {
-        $pass = mysqli_real_escape_string($conn, trim($_POST['password']));
-        $pass_sql = ", password='$pass'";
+        $pass     = password_hash(trim($_POST['password']), PASSWORD_DEFAULT);
+        $pass_sql = ", password='" . mysqli_real_escape_string($conn, $pass) . "'";
     }
     mysqli_query($conn, "UPDATE users SET full_name='$fullname', email='$email', phone='$phone', role='$role', status='$status' $pass_sql WHERE id=$id");
     header("Location: ../../../frontend/pages/dashboard.php?msg=User+updated");
