@@ -76,8 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_result'])) {
     $exam_name   = mysqli_real_escape_string($conn, $_POST['exam_name']);
     $exam_date   = mysqli_real_escape_string($conn, $_POST['exam_date']);
     $marks       = (int)$_POST['marks'];
-    $total_marks = (int)$_POST['total_marks'];
-    $grade       = mysqli_real_escape_string($conn, $_POST['grade']);
+    $total_marks = 100; // Total marks is fixed at 100 for all results
+    $grade       = mysqli_real_escape_string($conn, calc_grade($marks));
     $comments    = mysqli_real_escape_string($conn, $_POST['comments']);
     $ok = mysqli_query($conn, "INSERT INTO results (student_id, batch_id, exam_name, exam_date, marks, total_marks, grade, comments, uploaded_by) VALUES ($res_student, $res_batch, '$exam_name', '$exam_date', $marks, $total_marks, '$grade', '$comments', $user_id)");
     $res_msg = $ok
@@ -337,22 +337,47 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                     <div class="form-group"><label>Exam Date</label><input type="date" name="exam_date" value="<?php echo date('Y-m-d'); ?>"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Marks</label><input type="number" name="marks" min="0" required></div>
-                    <div class="form-group"><label>Total Marks</label><input type="number" name="total_marks" value="100" min="1"></div>
+                    <div class="form-group"><label>Marks (out of 100) *</label><input type="number" name="marks" id="res_marks" min="0" max="100" required oninput="aaUpdateGrade()"></div>
+                    <div class="form-group">
+                        <label>Total Marks</label>
+                        <input type="number" value="100" readonly disabled style="background:#f1f5f9; cursor:not-allowed;">
+                        <input type="hidden" name="total_marks" value="100">
+                    </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Grade</label>
-                        <select name="grade">
-                            <?php foreach (['A','A-','B+','B','B-','C+','C','F'] as $g): ?>
-                                <option value="<?php echo $g; ?>"><?php echo $g; ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <label>Grade <small style="color:#64748b;">(calculated automatically)</small></label>
+                        <input type="text" id="res_grade_display" readonly disabled style="background:#f1f5f9; cursor:not-allowed; font-weight:700;">
+                        <input type="hidden" name="grade" id="res_grade_hidden">
                     </div>
                     <div class="form-group"><label>Comments</label><input type="text" name="comments" placeholder="Optional comment"></div>
                 </div>
                 <button type="submit" name="upload_result" class="btn btn-primary">📤 Upload Result</button>
             </form>
+            <script>
+            function aaCalcGrade(marks) {
+                if (marks === '' || isNaN(marks)) return '';
+                marks = Number(marks);
+                if (marks >= 85) return 'A+';
+                if (marks >= 70) return 'A';
+                if (marks >= 65) return 'A-';
+                if (marks >= 60) return 'B+';
+                if (marks >= 55) return 'B';
+                if (marks >= 50) return 'B-';
+                if (marks >= 45) return 'C+';
+                if (marks >= 40) return 'C';
+                if (marks >= 35) return 'C-';
+                if (marks >= 30) return 'D+';
+                if (marks >= 25) return 'D';
+                return 'E';
+            }
+            function aaUpdateGrade() {
+                var marksInput = document.getElementById('res_marks');
+                var grade = aaCalcGrade(marksInput.value);
+                document.getElementById('res_grade_display').value = grade;
+                document.getElementById('res_grade_hidden').value  = grade;
+            }
+            </script>
         </div>
 
         <!-- VIEW RECENT RESULTS -->

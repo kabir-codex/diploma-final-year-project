@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS results (
     exam_date    DATE,
     marks        INT DEFAULT 0,
     total_marks  INT DEFAULT 100,
-    grade        VARCHAR(5),              -- e.g. A, B+, C, F
+    grade        VARCHAR(5),              -- e.g. A+, A, A-, B+, B, B-, C+, C, C-, D+, D, E
     comments     TEXT,
     uploaded_by  INT,                     -- Lecturer who uploaded (users.id)
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -371,32 +371,32 @@ INSERT INTO attendance (student_id, batch_id, attend_date, status, marked_by) VA
 -- uploaded_by: 4=Math, 5=Eng/ICT, 6=Science
 INSERT INTO results (student_id, batch_id, exam_name, exam_date, marks, total_marks, grade, comments, uploaded_by) VALUES
 -- Kabir – Math A exams
-(8,  1, 'Monthly Test 1',     '2025-02-01', 78, 100, 'B+', 'Good effort!',           4),
-(8,  1, 'Monthly Test 2',     '2025-03-01', 85, 100, 'A',  'Excellent work!',         4),
-(8,  1, 'Mid-Term Exam',      '2025-04-15', 80, 100, 'A-', 'Very good performance.',  4),
+(8, 1, 'Monthly Test 1', '2025-02-01', 78, 100, 'A', 'Good effort!', 4),
+(8, 1, 'Monthly Test 2', '2025-03-01', 85, 100, 'A+', 'Excellent work!', 4),
+(8, 1, 'Mid-Term Exam', '2025-04-15', 80, 100, 'A', 'Very good performance.', 4),
 -- Kabir – English
-(8,  3, 'Grammar Test',       '2025-02-15', 72, 100, 'B',  'Needs more practice.',    5),
-(8,  3, 'Essay Test',         '2025-03-20', 68, 100, 'B-', 'Work on writing style.',  5),
+(8, 3, 'Grammar Test', '2025-02-15', 72, 100, 'A', 'Needs more practice.', 5),
+(8, 3, 'Essay Test', '2025-03-20', 68, 100, 'A-', 'Work on writing style.', 5),
 -- Ishfaq – Math A
-(9,  1, 'Monthly Test 1',     '2025-02-01', 65, 100, 'C+', 'Revise algebra.',         4),
-(9,  1, 'Monthly Test 2',     '2025-03-01', 70, 100, 'B-', 'Improving!',              4),
-(9,  1, 'Mid-Term Exam',      '2025-04-15', 74, 100, 'B',  'Good progress.',          4),
+(9, 1, 'Monthly Test 1', '2025-02-01', 65, 100, 'A-', 'Revise algebra.', 4),
+(9, 1, 'Monthly Test 2', '2025-03-01', 70, 100, 'A', 'Improving!', 4),
+(9, 1, 'Mid-Term Exam', '2025-04-15', 74, 100, 'A', 'Good progress.', 4),
 -- Ishfaq – Science
-(9,  4, 'Theory Test 1',      '2025-02-20', 82, 100, 'A-', 'Strong in Physics.',      6),
-(9,  4, 'Theory Test 2',      '2025-03-25', 78, 100, 'B+', 'Good overall.',           6),
+(9, 4, 'Theory Test 1', '2025-02-20', 82, 100, 'A', 'Strong in Physics.', 6),
+(9, 4, 'Theory Test 2', '2025-03-25', 78, 100, 'A', 'Good overall.', 6),
 -- Amaya – Math B
-(10, 2, 'Monthly Test 1',     '2025-02-01', 91, 100, 'A',  'Outstanding!',            4),
-(10, 2, 'Monthly Test 2',     '2025-03-01', 88, 100, 'A',  'Keep it up!',             4),
-(10, 2, 'Mid-Term Exam',      '2025-04-15', 93, 100, 'A',  'Top of the class!',       4),
+(10, 2, 'Monthly Test 1', '2025-02-01', 91, 100, 'A+', 'Outstanding!', 4),
+(10, 2, 'Monthly Test 2', '2025-03-01', 88, 100, 'A+', 'Keep it up!', 4),
+(10, 2, 'Mid-Term Exam', '2025-04-15', 93, 100, 'A+', 'Top of the class!', 4),
 -- Amaya – English
-(10, 3, 'Grammar Test',       '2025-02-15', 80, 100, 'A-', 'Very good!',              5),
+(10, 3, 'Grammar Test', '2025-02-15', 80, 100, 'A', 'Very good!', 5),
 -- Nuwan – Math B
-(11, 2, 'Monthly Test 1',     '2025-02-01', 55, 100, 'C',  'Please revise Chapter 3.',4),
-(11, 2, 'Monthly Test 2',     '2025-03-01', 62, 100, 'C+', 'Slight improvement.',     4),
-(11, 2, 'Mid-Term Exam',      '2025-04-15', 70, 100, 'B-', 'Good progress!',          4),
+(11, 2, 'Monthly Test 1', '2025-02-01', 55, 100, 'B', 'Please revise Chapter 3.', 4),
+(11, 2, 'Monthly Test 2', '2025-03-01', 62, 100, 'B+', 'Slight improvement.', 4),
+(11, 2, 'Mid-Term Exam', '2025-04-15', 70, 100, 'A', 'Good progress!', 4),
 -- Hasini – Combined Maths
-(12, 5, 'Integration Test',   '2025-03-10', 88, 100, 'A',  'Excellent!',              4),
-(12, 5, 'Vectors Test',       '2025-04-10', 84, 100, 'A-', 'Very good.',              4),
+(12, 5, 'Integration Test', '2025-03-10', 88, 100, 'A+', 'Excellent!', 4),
+(12, 5, 'Vectors Test', '2025-04-10', 84, 100, 'A', 'Very good.', 4),
 -- Hasini – ICT
 (12, 7, 'MS Office Test',     '2025-02-20', 95, 100, 'A',  'Perfect score!',          5);
 

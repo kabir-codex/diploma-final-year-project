@@ -123,7 +123,7 @@ include '../../frontend/assets/header.php';
             <?php if ($total_graded > 0):
                 foreach ($grade_data as $grade => $cnt):
                     $pct   = round(($cnt / $total_graded) * 100);
-                    $color = in_array($grade, ['A','A-']) ? 'green' : ($grade == 'F' ? 'orange' : '');
+                    $color = in_array($grade, ['A+','A','A-']) ? 'green' : ($grade == 'E' ? 'orange' : '');
             ?>
                 <div style="margin-bottom:12px;">
                     <div style="display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px;">
@@ -191,7 +191,7 @@ include '../../frontend/assets/header.php';
                 $has_rows = false;
                 while ($r = mysqli_fetch_assoc($results)):
                     $has_rows = true;
-                    $gc = in_array($r['grade'], ['A','A-']) ? 'badge-green' : ($r['grade'] == 'F' ? 'badge-red' : 'badge-blue');
+                    $gc = in_array($r['grade'], ['A+','A','A-']) ? 'badge-green' : ($r['grade'] == 'E' ? 'badge-red' : 'badge-blue');
                 ?>
                     <tr>
                         <td><?php echo htmlspecialchars($r['student_name']); ?></td>
