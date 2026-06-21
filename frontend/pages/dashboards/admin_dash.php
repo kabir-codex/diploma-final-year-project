@@ -6,38 +6,38 @@
 // ============================================================
 
 // --- LINK PARENT TO STUDENT ---
-$link_parent_msg = '';
+$link_parent_msg = ''; // Will hold a success/warning/error message after the form below is submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['link_parent'])) {
-    $lp_parent_id  = (int)$_POST['lp_parent_id'];
-    $lp_student_id = (int)$_POST['lp_student_id'];
+    $lp_parent_id  = (int)$_POST['lp_parent_id'];  // Which parent account to link
+    $lp_student_id = (int)$_POST['lp_student_id']; // Which student account to link them to
     if (!$lp_parent_id || !$lp_student_id) {
-        $link_parent_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please select both a parent and a student.</div>";
+        $link_parent_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please select both a parent and a student.</div>"; // Required fields check
     } else {
-        $chk = mysqli_query($conn, "SELECT id FROM parent_student WHERE parent_id=$lp_parent_id AND student_id=$lp_student_id");
+        $chk = mysqli_query($conn, "SELECT id FROM parent_student WHERE parent_id=$lp_parent_id AND student_id=$lp_student_id"); // Check this exact pair isn't already linked
         if (mysqli_num_rows($chk) > 0) {
-            $link_parent_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ This parent is already linked to that student.</div>";
+            $link_parent_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ This parent is already linked to that student.</div>"; // Avoid duplicate links
         } else {
-            mysqli_query($conn, "INSERT INTO parent_student (parent_id, student_id) VALUES ($lp_parent_id, $lp_student_id)");
+            mysqli_query($conn, "INSERT INTO parent_student (parent_id, student_id) VALUES ($lp_parent_id, $lp_student_id)"); // Create the link
             $link_parent_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Parent linked to student successfully!</div>";
         }
     }
 }
 
 // ----- COUNT STATS FOR THE OVERVIEW CARDS -----
-$cnt_students  = count_rows($conn, 'users',    "role='student'");
-$cnt_lecturers = count_rows($conn, 'users',    "role='lecturer'");
-$cnt_batches   = count_rows($conn, 'batches',  "status='active'");
-$cnt_pending   = count_rows($conn, 'payments', "status='pending'");
-$cnt_enquiries = count_rows($conn, 'enquiries', "status='pending'");
+$cnt_students  = count_rows($conn, 'users',    "role='student'");    // Total student accounts
+$cnt_lecturers = count_rows($conn, 'users',    "role='lecturer'");   // Total lecturer accounts
+$cnt_batches   = count_rows($conn, 'batches',  "status='active'");   // Currently active batches
+$cnt_pending   = count_rows($conn, 'payments', "status='pending'");  // Payments awaiting approval
+$cnt_enquiries = count_rows($conn, 'enquiries', "status='pending'"); // Enquiries not yet followed up on
 
 // Calculate total approved revenue
-$rev = get_one_row($conn, "SELECT SUM(amount) AS total FROM payments WHERE status='approved'");
-$total_revenue = $rev ? (float)$rev['total'] : 0;
+$rev = get_one_row($conn, "SELECT SUM(amount) AS total FROM payments WHERE status='approved'"); // Sum of every approved payment
+$total_revenue = $rev ? (float)$rev['total'] : 0; // Falls back to 0 if there are no approved payments at all yet
 
 // ----- LOAD DATA FOR EACH SECTION -----
 
 // All users (for the users table)
-$users = mysqli_query($conn, "SELECT * FROM users ORDER BY role, full_name");
+$users = mysqli_query($conn, "SELECT * FROM users ORDER BY role, full_name"); // Grouped by role, alphabetical within each role
 
 // All subjects
 $subjects = mysqli_query($conn, "SELECT * FROM subjects ORDER BY name");
@@ -66,7 +66,7 @@ $announcements = mysqli_query($conn, "
     FROM announcements a
     LEFT JOIN users u ON a.posted_by = u.id
     ORDER BY a.created_at DESC
-");
+"); // LEFT JOIN so an announcement still shows even if its poster's account was later deleted
 
 // All enquiries
 $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DESC");
@@ -81,6 +81,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
             <p><?php echo $full_name; ?></p>
         </div>
         <nav class="sidebar-nav">
+            <!-- Each link is a same-page anchor (#id) — clicking jumps straight to that panel below -->
             <a href="#overview"      class="active"><span class="sidebar-icon">📊</span> Overview</a>
             <a href="#users">                       <span class="sidebar-icon">👥</span> Users</a>
             <a href="#subjects">                    <span class="sidebar-icon">📚</span> Subjects</a>
@@ -103,6 +104,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
             <div style="background:#dcfce7; color:#166534; padding:12px 16px; border-radius:8px; margin-bottom:20px; border:1px solid #86efac;">
                 ✅ <?php echo htmlspecialchars($_GET['msg']); ?>
             </div>
+            <!-- Comes from a redirect like dashboard.php?msg=User+added, set by the various CRUD scripts -->
         <?php endif; ?>
 
         <!-- ===== OVERVIEW STATS ===== -->
@@ -113,6 +115,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
             <div class="stat-card yellow"> <div class="stat-number"><?php echo $cnt_pending; ?></div>  <div class="stat-label">Pending Payments</div></div>
             <div class="stat-card red">    <div class="stat-number"><?php echo $cnt_enquiries; ?></div><div class="stat-label">New Enquiries</div></div>
             <div class="stat-card green">  <div class="stat-number">LKR <?php echo number_format($total_revenue / 1000, 1); ?>K</div><div class="stat-label">Revenue Collected</div></div>
+            <!-- Divides by 1000 and shows one decimal, e.g. "245.5K" instead of "245,500" -->
         </div>
 
         <!-- ===== USERS TABLE ===== -->
@@ -146,6 +149,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             </td>
                         </tr>
                         <?php endwhile; ?>
+                        <!-- One row per user account in the system, grouped by role -->
                     <?php else: ?>
                         <tr><td colspan="7" style="text-align:center; color:#64748b;">No users found.</td></tr>
                     <?php endif; ?>
@@ -177,6 +181,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             </td>
                         </tr>
                         <?php endwhile; ?>
+                        <!-- One row per subject in the system -->
                     <?php else: ?>
                         <tr><td colspan="5" style="text-align:center; color:#64748b;">No subjects found.</td></tr>
                     <?php endif; ?>
@@ -197,7 +202,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                     <tbody>
                     <?php if ($batches && mysqli_num_rows($batches) > 0): ?>
                         <?php while ($b = mysqli_fetch_assoc($batches)):
-                            $badge = $b['status'] == 'active' ? 'badge-green' : ($b['status'] == 'upcoming' ? 'badge-yellow' : 'badge-gray');
+                            $badge = $b['status'] == 'active' ? 'badge-green' : ($b['status'] == 'upcoming' ? 'badge-yellow' : 'badge-gray'); // Colour-code the status pill
                         ?>
                         <tr>
                             <td><?php echo $b['batch_name']; ?></td>
@@ -212,6 +217,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             </td>
                         </tr>
                         <?php endwhile; ?>
+                        <!-- One row per batch in the system -->
                     <?php else: ?>
                         <tr><td colspan="7" style="text-align:center; color:#64748b;">No batches found.</td></tr>
                     <?php endif; ?>
@@ -229,6 +235,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                 <div style="background:#dcfce7; color:#166534; padding:10px 14px; border-radius:8px; margin-bottom:14px;">
                     ✅ <?php echo htmlspecialchars($_GET['pay_msg']); ?>
                 </div>
+                <!-- Comes from update_payment.php / approve_payment.php / delete_payment.php's redirect -->
             <?php endif; ?>
 
             <div class="table-wrapper">
@@ -242,7 +249,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                     <tbody>
                     <?php if ($payments && mysqli_num_rows($payments) > 0): ?>
                         <?php while ($p = mysqli_fetch_assoc($payments)):
-                            $pb = $p['status'] == 'approved' ? 'badge-green' : ($p['status'] == 'rejected' ? 'badge-red' : 'badge-yellow');
+                            $pb = $p['status'] == 'approved' ? 'badge-green' : ($p['status'] == 'rejected' ? 'badge-red' : 'badge-yellow'); // Colour-code the status pill
                         ?>
                         <tr>
                             <td><?php echo htmlspecialchars($p['student_name']); ?></td>
@@ -253,6 +260,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             <td>
                                 <?php if (!empty($p['receipt_file'])): ?>
                                     <a href="../../uploads/receipts/<?php echo $p['receipt_file']; ?>" target="_blank" style="color:#2563eb; font-size:0.78rem;">📎 View</a>
+                                    <!-- Only shown if a receipt was actually uploaded for this payment -->
                                 <?php else: ?>
                                     <span style="color:#94a3b8; font-size:0.78rem;">No file</span>
                                 <?php endif; ?>
@@ -268,6 +276,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                                         <option value="pending"  <?php if ($p['status']=='pending')  echo 'selected'; ?>>Pending</option>
                                         <option value="approved" <?php if ($p['status']=='approved') echo 'selected'; ?>>Approved</option>
                                         <option value="rejected" <?php if ($p['status']=='rejected') echo 'selected'; ?>>Rejected</option>
+                                        <!-- Marks the payment's current status as already selected -->
                                     </select>
                                     <button type="submit" class="btn btn-small btn-primary">Save</button>
                                 </form>
@@ -281,10 +290,12 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                                 <!-- Print receipt (only for approved) -->
                                 <?php if ($p['status'] == 'approved'): ?>
                                     <a href="print_receipt.php?id=<?php echo $p['id']; ?>" target="_blank" class="btn btn-small btn-green" style="margin-left:2px;">🖨️</a>
+                                    <!-- Only meaningful once a payment is approved -->
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <?php endwhile; ?>
+                        <!-- One row per payment record in the system -->
                     <?php else: ?>
                         <tr><td colspan="8" style="text-align:center; color:#64748b;">No payments found.</td></tr>
                     <?php endif; ?>
@@ -309,6 +320,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             <td><?php echo $a['title']; ?></td>
                             <td><span class="badge badge-blue"><?php echo $a['audience']; ?></span></td>
                             <td><?php echo $a['posted_by_name'] ?: '—'; ?></td>
+                            <!-- Falls back to an em-dash if the poster's account was deleted -->
                             <td><?php echo $a['post_date']; ?></td>
                             <td>
                                 <a href="../../backend/crud/announcements/edit_announcement.php?id=<?php echo $a['id']; ?>" class="btn btn-small btn-primary">Edit</a>
@@ -316,6 +328,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             </td>
                         </tr>
                         <?php endwhile; ?>
+                        <!-- One row per announcement ever posted (any role) -->
                     <?php else: ?>
                         <tr><td colspan="5" style="text-align:center; color:#64748b;">No announcements found.</td></tr>
                     <?php endif; ?>
@@ -333,7 +346,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                     <tbody>
                     <?php if ($enquiries && mysqli_num_rows($enquiries) > 0): ?>
                         <?php while ($e = mysqli_fetch_assoc($enquiries)):
-                            $eb = $e['status'] == 'enrolled' ? 'badge-green' : ($e['status'] == 'contacted' ? 'badge-blue' : 'badge-yellow');
+                            $eb = $e['status'] == 'enrolled' ? 'badge-green' : ($e['status'] == 'contacted' ? 'badge-blue' : 'badge-yellow'); // Colour-code the status pill
                         ?>
                         <tr>
                             <td><?php echo $e['name']; ?></td>
@@ -347,6 +360,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             </td>
                         </tr>
                         <?php endwhile; ?>
+                        <!-- One row per public enquiry submitted via enquiry.php or logged by reception -->
                     <?php else: ?>
                         <tr><td colspan="6" style="text-align:center; color:#64748b;">No enquiries found.</td></tr>
                     <?php endif; ?>
@@ -358,7 +372,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
         <!-- ===== LINK PARENT TO STUDENT ===== -->
         <div id="link_parent" class="panel">
             <div class="panel-title">👨‍👩‍👧 Link Parent to Student</div>
-            <?php echo $link_parent_msg; ?>
+            <?php echo $link_parent_msg; ?> <!-- Success/warning/error message from the handler at the top of the file -->
 
             <!-- Link Form -->
             <div class="card card-accent" style="max-width:520px; margin-bottom:24px;">
@@ -367,9 +381,10 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                         <label>Select Parent *</label>
                         <select name="lp_parent_id" required>
                             <option value="">-- Select Parent --</option>
-                            <?php $parents = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='parent' ORDER BY full_name");
+                            <?php $parents = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='parent' ORDER BY full_name"); // Fresh query on every page load, so newly added parents show up immediately
                             while ($p = mysqli_fetch_assoc($parents)): ?>
                                 <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['full_name']); ?></option>
+                                <!-- One option per parent account in the system -->
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -377,9 +392,10 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                         <label>Select Student (Child) *</label>
                         <select name="lp_student_id" required>
                             <option value="">-- Select Student --</option>
-                            <?php $stu_lp = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='student' ORDER BY full_name");
+                            <?php $stu_lp = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query on every page load, so newly added students show up immediately
                             while ($s = mysqli_fetch_assoc($stu_lp)): ?>
                                 <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
+                                <!-- One option per student account in the system -->
                             <?php endwhile; ?>
                         </select>
                     </div>
@@ -401,7 +417,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                     JOIN users p ON ps.parent_id  = p.id
                     JOIN users s ON ps.student_id = s.id
                     ORDER BY p.full_name
-                ");
+                "); // Every existing parent-student link, with names resolved via joins
                 if ($all_links && mysqli_num_rows($all_links) > 0):
                     while ($lnk = mysqli_fetch_assoc($all_links)): ?>
                     <tr>
@@ -413,11 +429,13 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                                onclick="return confirm('Remove this parent-student link?');">
                                🗑️ Unlink
                             </a>
+                            <!-- Handled by the unlink_id pre-HTML redirect block in dashboard.php; only removes the link, not either account -->
                         </td>
                     </tr>
                 <?php endwhile; else: ?>
                     <tr><td colspan="3" style="text-align:center; color:#64748b;">No links yet. Add one above.</td></tr>
                 <?php endif; ?>
+                <!-- One row per existing parent-student link -->
                 </tbody>
             </table></div>
         </div>
@@ -431,12 +449,14 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                     <h3>Financial Report</h3>
                     <p style="color:#64748b; font-size:0.85rem; margin-bottom:16px;">View all payments, revenue by subject and by month.</p>
                     <a href="report_financial.php" class="btn btn-primary" style="display:block;">Open Report</a>
+                    <!-- Links straight to report_financial.php -->
                 </div>
                 <div class="card card-accent" style="text-align:center; padding:28px 20px;">
                     <div style="font-size:2.5rem; margin-bottom:12px;">📚</div>
                     <h3>Academic Report</h3>
                     <p style="color:#64748b; font-size:0.85rem; margin-bottom:16px;">View exam results, pass rates and top students.</p>
                     <a href="report_academic.php" class="btn btn-primary" style="display:block;">Open Report</a>
+                    <!-- Links straight to report_academic.php -->
                 </div>
             </div>
         </div>
