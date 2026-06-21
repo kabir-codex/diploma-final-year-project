@@ -7,29 +7,29 @@
 // ============================================================
 
 // --- HANDLE PAYMENT UPLOAD ---
-$pay_msg = '';
+$pay_msg = ''; // Will hold a success/error message after the form below is submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_payment'])) {
-    $batch_id  = (int)$_POST['pay_batch_id'];
-    $amount    = (float)$_POST['pay_amount'];
-    $pay_month = mysqli_real_escape_string($conn, $_POST['pay_month']);
-    $pay_date  = date('Y-m-d');
-    $rec_no    = 'STU-' . strtoupper(substr(md5(uniqid()), 0, 6));
+    $batch_id  = (int)$_POST['pay_batch_id'];                        // Which batch this payment is for
+    $amount    = (float)$_POST['pay_amount'];                        // How much was paid
+    $pay_month = mysqli_real_escape_string($conn, $_POST['pay_month']); // Which month this payment covers
+    $pay_date  = date('Y-m-d');                                       // Today's date
+    $rec_no    = 'STU-' . strtoupper(substr(md5(uniqid()), 0, 6));     // Random-looking receipt number, e.g. "STU-3F9A2B"
 
     // Handle file upload (optional receipt image)
-    $filename = '';
+    $filename = ''; // Stays empty if no file was uploaded
     if (isset($_FILES['receipt_file']) && $_FILES['receipt_file']['error'] == 0) {
-        $allowed    = ['jpg', 'jpeg', 'png', 'pdf'];
-        $ext        = strtolower(pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION));
+        $allowed    = ['jpg', 'jpeg', 'png', 'pdf'];                                          // Only these file types are accepted
+        $ext        = strtolower(pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION)); // The uploaded file's extension, lowercased
         if (in_array($ext, $allowed)) {
-            $filename = 'receipt_' . $user_id . '_' . time() . '.' . $ext;
-            move_uploaded_file($_FILES['receipt_file']['tmp_name'], '../../uploads/receipts/' . $filename);
+            $filename = 'receipt_' . $user_id . '_' . time() . '.' . $ext; // Unique filename so receipts never overwrite each other
+            move_uploaded_file($_FILES['receipt_file']['tmp_name'], '../../uploads/receipts/' . $filename); // Actually move the file from PHP's temp location to the uploads folder
         }
     }
 
     if (!$batch_id || $amount <= 0 || empty($pay_month)) {
-        $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Batch, amount and month are required.</div>";
+        $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Batch, amount and month are required.</div>"; // Required fields check
     } else {
-        mysqli_query($conn, "INSERT INTO payments (student_id, batch_id, amount, pay_month, receipt_no, pay_date, receipt_file, status) VALUES ($user_id, $batch_id, $amount, '$pay_month', '$rec_no', '$pay_date', '$filename', 'pending')");
+        mysqli_query($conn, "INSERT INTO payments (student_id, batch_id, amount, pay_month, receipt_no, pay_date, receipt_file, status) VALUES ($user_id, $batch_id, $amount, '$pay_month', '$rec_no', '$pay_date', '$filename', 'pending')"); // Save the payment, always starting as 'pending' until staff approve it
         $pay_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Payment submitted for approval! Receipt: <strong>$rec_no</strong></div>";
     }
 }
@@ -48,14 +48,14 @@ $my_batches = mysqli_query($conn, "
 ");
 
 // Collect batch IDs as array for later queries
-$my_batch_ids = [];
-$batch_rows   = [];
+$my_batch_ids = []; // Plain list of batch ids this student is enrolled in
+$batch_rows   = []; // Same data as an array of rows, so it can be looped multiple times in the HTML below
 $bk = mysqli_query($conn, "SELECT e.batch_id, b.batch_name, s.name AS subject_name FROM enrollments e JOIN batches b ON e.batch_id=b.id JOIN subjects s ON b.subject_id=s.id WHERE e.student_id=$user_id AND e.status='active'");
 while ($r = mysqli_fetch_assoc($bk)) {
     $my_batch_ids[] = $r['batch_id'];
     $batch_rows[]   = $r;
 }
-$batch_ids_str = empty($my_batch_ids) ? '0' : implode(',', $my_batch_ids);
+$batch_ids_str = empty($my_batch_ids) ? '0' : implode(',', $my_batch_ids); // Comma-joined string, ready to drop into an "IN (...)" SQL clause if ever needed
 
 // My exam results
 $my_results = mysqli_query($conn, "
@@ -83,10 +83,10 @@ $my_attendance = mysqli_query($conn, "
 
 // Build a batch_id -> attendance % map from the summary above (for the % column
 // in the detailed records table below)
-$my_attendance_pct  = [];
-$my_attendance_rows = [];
+$my_attendance_pct  = []; // batch_id -> overall attendance percentage for that batch
+$my_attendance_rows = []; // Plain array version of $my_attendance, so it can be looped again for the overview cards
 while ($row = mysqli_fetch_assoc($my_attendance)) {
-    $my_attendance_pct[$row['batch_id']] = $row['total'] > 0 ? round(($row['present'] / $row['total']) * 100) : 0;
+    $my_attendance_pct[$row['batch_id']] = $row['total'] > 0 ? round(($row['present'] / $row['total']) * 100) : 0; // Avoid divide-by-zero if no attendance recorded yet
     $my_attendance_rows[] = $row;
 }
 
@@ -101,8 +101,8 @@ $my_attendance_records = mysqli_query($conn, "
 ");
 
 // My performance points
-$my_points_row = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $user_id");
-$total_points  = $my_points_row ? (int)$my_points_row['total'] : 0;
+$my_points_row = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $user_id"); // Lifetime total across every award
+$total_points  = $my_points_row ? (int)$my_points_row['total'] : 0; // Falls back to 0 if never awarded any points
 $my_points     = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.id LEFT JOIN batches b ON pp.batch_id=b.id WHERE pp.student_id=$user_id ORDER BY pp.id DESC");
 
 // My payment history
@@ -123,7 +123,7 @@ $announcements = mysqli_query($conn, "
     WHERE a.audience IN ('all', 'students')
     ORDER BY a.created_at DESC
     LIMIT 10
-");
+"); // Only shows announcements meant for everyone or specifically for students
 
 // Class links for my batches
 $class_links = mysqli_query($conn, "
@@ -135,7 +135,7 @@ $class_links = mysqli_query($conn, "
     WHERE cl.batch_id IN ($batch_ids_str)
     ORDER BY cl.class_date DESC
     LIMIT 20
-");
+"); // $batch_ids_str was built above as a safe comma-joined list of this student's own batch ids
 
 // Study materials for my batches
 $materials = mysqli_query($conn, "
@@ -152,6 +152,7 @@ $materials = mysqli_query($conn, "
     <aside class="sidebar">
         <div class="sidebar-header"><h3>🎓 Student Portal</h3><p><?php echo htmlspecialchars($full_name); ?></p></div>
         <nav class="sidebar-nav">
+            <!-- Each link is a same-page anchor (#id) — clicking jumps straight to that panel below -->
             <a href="#my_batches"     class="active"><span class="sidebar-icon">🗓️</span> My Batches</a>
             <a href="#results">                      <span class="sidebar-icon">📊</span> My Results</a>
             <a href="#attendance">                   <span class="sidebar-icon">✅</span> My Attendance</a>
@@ -172,7 +173,7 @@ $materials = mysqli_query($conn, "
             <div class="panel-title">🗓️ My Batches &amp; Schedule</div>
             <?php
             // Reset pointer
-            mysqli_data_seek($my_batches, 0);
+            mysqli_data_seek($my_batches, 0); // $my_batches was already counted with mysqli_num_rows above; rewind it so the while loop below starts from the first row
             if (mysqli_num_rows($my_batches) > 0): ?>
             <div class="card-grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px;">
                 <?php while ($b = mysqli_fetch_assoc($my_batches)): ?>
@@ -191,11 +192,13 @@ $materials = mysqli_query($conn, "
                     </div>
                 </div>
                 <?php endwhile; ?>
+                <!-- One card per batch this student is actively enrolled in -->
             </div>
             <?php else: ?>
                 <div style="text-align:center; padding:40px; color:#64748b;">
                     <div style="font-size:3rem; margin-bottom:12px;">📭</div>
                     <p>You are not enrolled in any batches yet. Please contact the receptionist.</p>
+                    <!-- Shown only if this student has zero active enrollments -->
                 </div>
             <?php endif; ?>
         </div>
@@ -208,7 +211,7 @@ $materials = mysqli_query($conn, "
                 <tbody>
                 <?php if ($my_results && mysqli_num_rows($my_results) > 0):
                     while ($r = mysqli_fetch_assoc($my_results)):
-                        $gc = in_array($r['grade'], ['A+','A','A-']) ? 'badge-green' : ($r['grade'] == 'E' ? 'badge-red' : 'badge-blue');
+                        $gc = in_array($r['grade'], ['A+','A','A-']) ? 'badge-green' : ($r['grade'] == 'E' ? 'badge-red' : 'badge-blue'); // Colour-code the grade pill
                 ?>
                     <tr>
                         <td><?php echo htmlspecialchars($r['subject_name']); ?></td>
@@ -218,10 +221,12 @@ $materials = mysqli_query($conn, "
                         <td><strong><?php echo $r['marks']; ?></strong>/<?php echo $r['total_marks']; ?></td>
                         <td><span class="badge <?php echo $gc; ?>"><?php echo $r['grade']; ?></span></td>
                         <td style="font-size:.82rem; color:#64748b;"><?php echo htmlspecialchars($r['comments'] ?: '—'); ?></td>
+                        <!-- Falls back to an em-dash if the lecturer left no comment -->
                     </tr>
                 <?php endwhile; else: ?>
                     <tr><td colspan="7" style="text-align:center; color:#64748b;">No results uploaded yet.</td></tr>
                 <?php endif; ?>
+                <!-- One row per exam result this student has received -->
                 </tbody>
             </table></div>
         </div>
@@ -234,8 +239,8 @@ $materials = mysqli_query($conn, "
             <?php if (!empty($my_attendance_rows)): ?>
             <div class="card-grid" style="margin-bottom:24px;">
                 <?php foreach ($my_attendance_rows as $at):
-                    $pct = $at['total'] > 0 ? round(($at['present'] / $at['total']) * 100) : 0;
-                    $bar = $pct >= 80 ? 'green' : ($pct >= 60 ? '' : 'orange');
+                    $pct = $at['total'] > 0 ? round(($at['present'] / $at['total']) * 100) : 0; // Avoid divide-by-zero if no attendance recorded yet
+                    $bar = $pct >= 80 ? 'green' : ($pct >= 60 ? '' : 'orange');                  // Colour-code the progress bar
                 ?>
                     <div class="card">
                         <h3 style="font-size:0.92rem;"><?php echo htmlspecialchars($at['subject_name']); ?> — <?php echo htmlspecialchars($at['batch_name']); ?></h3>
@@ -248,6 +253,7 @@ $materials = mysqli_query($conn, "
                         </p>
                     </div>
                 <?php endforeach; ?>
+                <!-- One card per batch this student has attendance records for -->
             </div>
             <?php endif; ?>
 
@@ -259,6 +265,7 @@ $materials = mysqli_query($conn, "
                         <option value="">All Batches</option>
                         <?php foreach ($my_attendance_rows as $at): ?>
                             <option value="<?php echo $at['batch_id']; ?>"><?php echo htmlspecialchars($at['batch_name']); ?> – <?php echo htmlspecialchars($at['subject_name']); ?></option>
+                            <!-- One option per batch this student has attendance records for -->
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -275,45 +282,48 @@ $materials = mysqli_query($conn, "
                 <?php if (!$my_attendance_records || mysqli_num_rows($my_attendance_records) == 0): ?>
                     <tr><td colspan="4" style="text-align:center; color:#64748b;">No attendance records yet.</td></tr>
                 <?php else: while ($ar = mysqli_fetch_assoc($my_attendance_records)):
-                    $status_badge = $ar['status'] == 'present' ? 'badge-green' : ($ar['status'] == 'absent' ? 'badge-red' : 'badge-yellow');
-                    $status_icon  = $ar['status'] == 'present' ? '✅' : ($ar['status'] == 'absent' ? '❌' : '⏰');
+                    $status_badge = $ar['status'] == 'present' ? 'badge-green' : ($ar['status'] == 'absent' ? 'badge-red' : 'badge-yellow'); // Colour-code the status pill
+                    $status_icon  = $ar['status'] == 'present' ? '✅' : ($ar['status'] == 'absent' ? '❌' : '⏰');                            // Matching emoji
                 ?>
                     <tr data-batch-id="<?php echo $ar['batch_id']; ?>" data-search="<?php echo htmlspecialchars(strtolower($ar['batch_name'] . ' ' . $ar['subject_name'])); ?>">
+                        <!-- data-* attributes are read by the JS filter below; no server round-trip needed to filter -->
                         <td><?php echo htmlspecialchars($ar['batch_name']); ?></td>
                         <td><?php echo htmlspecialchars($ar['subject_name']); ?></td>
                         <td style="font-size:0.85rem;"><?php echo date('d M Y', strtotime($ar['attend_date'])); ?></td>
                         <td><span class="badge <?php echo $status_badge; ?>"><?php echo $status_icon . ' ' . ucfirst($ar['status']); ?></span></td>
                     </tr>
                 <?php endwhile; endif; ?>
+                <!-- One row per individual attendance record this student has -->
                 </tbody>
             </table></div>
             <p id="stu_att_records_empty" style="text-align:center; color:#64748b; padding:14px; display:none;">No matching attendance records.</p>
+            <!-- Hidden by default; shown by the JS below only when a filter/search matches nothing -->
         </div>
 
         <script>
         (function() {
-            var batchFilter = document.getElementById('stu_att_batch_filter');
-            var search      = document.getElementById('stu_att_search');
-            var table       = document.getElementById('stu_att_records_table');
-            if (!batchFilter || !search || !table) return;
-            var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-batch-id]'));
+            var batchFilter = document.getElementById('stu_att_batch_filter');       // The batch dropdown
+            var search      = document.getElementById('stu_att_search');             // The free-text search box
+            var table       = document.getElementById('stu_att_records_table');     // The records table itself
+            if (!batchFilter || !search || !table) return;                          // Bail out safely if any element is missing
+            var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-batch-id]')); // All data rows (excludes the "no records" placeholder row)
 
             function applyFilter() {
-                var batchVal = batchFilter.value;
-                var term     = search.value.trim().toLowerCase();
-                var visible  = 0;
+                var batchVal = batchFilter.value;                  // Currently selected batch id ('' means "all")
+                var term     = search.value.trim().toLowerCase();  // Currently typed search text, lowercased for case-insensitive matching
+                var visible  = 0;                                   // Counts how many rows remain visible after filtering
                 rows.forEach(function(row) {
-                    var matchesBatch = !batchVal || row.getAttribute('data-batch-id') === batchVal;
-                    var matchesTerm  = !term || row.getAttribute('data-search').indexOf(term) !== -1;
-                    var show = matchesBatch && matchesTerm;
-                    row.style.display = show ? '' : 'none';
+                    var matchesBatch = !batchVal || row.getAttribute('data-batch-id') === batchVal;        // True if no batch filter, or it matches this row's batch
+                    var matchesTerm  = !term || row.getAttribute('data-search').indexOf(term) !== -1;      // True if no search term, or it's found in the row's batch/subject text
+                    var show = matchesBatch && matchesTerm;          // Row is shown only if it satisfies BOTH filters
+                    row.style.display = show ? '' : 'none';          // Toggle visibility directly via CSS
                     if (show) visible++;
                 });
                 var emptyMsg = document.getElementById('stu_att_records_empty');
-                if (emptyMsg) emptyMsg.style.display = (rows.length > 0 && visible === 0) ? '' : 'none';
+                if (emptyMsg) emptyMsg.style.display = (rows.length > 0 && visible === 0) ? '' : 'none'; // Show "no matches" only when filtering hid every row
             }
-            batchFilter.addEventListener('change', applyFilter);
-            search.addEventListener('input', applyFilter);
+            batchFilter.addEventListener('change', applyFilter); // Re-filter whenever the batch dropdown changes
+            search.addEventListener('input', applyFilter);       // Re-filter on every keystroke in the search box
         })();
         </script>
 
@@ -331,10 +341,12 @@ $materials = mysqli_query($conn, "
                         <td><?php echo htmlspecialchars($pt['awarded_by_name']); ?></td>
                         <td><?php echo htmlspecialchars($pt['batch_name'] ?: '—'); ?></td>
                         <td><?php echo htmlspecialchars($pt['reason'] ?: '—'); ?></td>
+                        <!-- Falls back to an em-dash if no reason was given -->
                     </tr>
                 <?php endwhile; else: ?>
                     <tr><td colspan="5" style="text-align:center; color:#64748b;">No points awarded yet.</td></tr>
                 <?php endif; ?>
+                <!-- One row per performance points award this student has received -->
                 </tbody>
             </table></div>
         </div>
@@ -342,12 +354,13 @@ $materials = mysqli_query($conn, "
         <!-- PAYMENTS -->
         <div id="payments" class="panel">
             <div class="panel-title">💳 Payments</div>
-            <?php echo $pay_msg; ?>
+            <?php echo $pay_msg; ?> <!-- Success/error message from the handler at the top of the file -->
 
             <!-- Upload Payment Form -->
             <div class="card card-accent" style="margin-bottom:24px;">
                 <h3 style="font-size:1rem; margin-bottom:14px; color:#1a3a5c;">📤 Submit Payment</h3>
                 <form method="POST" action="dashboard.php#payments" enctype="multipart/form-data">
+                    <!-- enctype="multipart/form-data" is required whenever a form includes a file input -->
                     <div class="form-row">
                         <div class="form-group">
                             <label>Batch *</label>
@@ -355,6 +368,7 @@ $materials = mysqli_query($conn, "
                                 <option value="">-- Select Batch --</option>
                                 <?php foreach ($batch_rows as $br): ?>
                                     <option value="<?php echo $br['batch_id']; ?>"><?php echo htmlspecialchars($br['batch_name']); ?> – <?php echo htmlspecialchars($br['subject_name']); ?></option>
+                                    <!-- One option per batch this student is enrolled in -->
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -362,6 +376,7 @@ $materials = mysqli_query($conn, "
                     </div>
                     <div class="form-row">
                         <div class="form-group"><label>Payment Month *</label><input type="month" name="pay_month" value="<?php echo date('Y-m'); ?>" required></div>
+                        <!-- Defaults to the current month -->
                         <div class="form-group"><label>📎 Receipt Image (optional)</label><input type="file" name="receipt_file" accept=".jpg,.jpeg,.png,.pdf" style="padding:7px; background:#f8fafc; border:1.5px dashed #94a3b8; border-radius:7px; width:100%;"></div>
                     </div>
                     <p style="font-size:.82rem; color:#64748b; margin-bottom:10px;">ℹ️ Payment will be reviewed and approved by the admin.</p>
@@ -375,7 +390,7 @@ $materials = mysqli_query($conn, "
                 <tbody>
                 <?php if ($my_payments && mysqli_num_rows($my_payments) > 0):
                     while ($p = mysqli_fetch_assoc($my_payments)):
-                        $pb = $p['status'] == 'approved' ? 'badge-green' : ($p['status'] == 'rejected' ? 'badge-red' : 'badge-yellow');
+                        $pb = $p['status'] == 'approved' ? 'badge-green' : ($p['status'] == 'rejected' ? 'badge-red' : 'badge-yellow'); // Colour-code the status pill
                 ?>
                     <tr>
                         <td style="font-size:.85rem;"><?php echo htmlspecialchars($p['receipt_no'] ?: '—'); ?></td>
@@ -388,6 +403,7 @@ $materials = mysqli_query($conn, "
                         <td>
                             <?php if ($p['status'] == 'approved'): ?>
                                 <a href="print_receipt.php?id=<?php echo $p['id']; ?>" target="_blank" class="btn btn-small btn-primary">🖨️</a>
+                                <!-- Only meaningful once a payment is approved -->
                             <?php else: ?>
                                 <span style="font-size:.78rem; color:#94a3b8;">N/A</span>
                             <?php endif; ?>
@@ -396,6 +412,7 @@ $materials = mysqli_query($conn, "
                 <?php endwhile; else: ?>
                     <tr><td colspan="8" style="text-align:center; color:#64748b;">No payment records yet.</td></tr>
                 <?php endif; ?>
+                <!-- One row per payment this student has ever submitted -->
                 </tbody>
             </table></div>
         </div>
@@ -409,9 +426,11 @@ $materials = mysqli_query($conn, "
                     <h4>📢 <?php echo htmlspecialchars($ann['title']); ?></h4>
                     <p><?php echo htmlspecialchars($ann['message']); ?></p>
                     <p class="ann-date">Posted by <?php echo htmlspecialchars($ann['posted_by_name'] ?: 'Admin'); ?> on <?php echo date('d M Y', strtotime($ann['post_date'])); ?></p>
+                    <!-- Falls back to "Admin" if the poster's account was deleted -->
                 </div>
             <?php endwhile; else: ?>
                 <p style="color:#64748b;">No announcements at this time.</p>
+                <!-- Shown only if there are zero announcements aimed at 'all' or 'students' -->
             <?php endif; ?>
         </div>
 
@@ -423,8 +442,8 @@ $materials = mysqli_query($conn, "
                 <thead><tr><th>Title</th><th>Subject</th><th>Batch</th><th>Lecturer</th><th>Class Date</th><th>Link</th></tr></thead>
                 <tbody>
                 <?php while ($lnk = mysqli_fetch_assoc($class_links)):
-                    $is_today   = date('Y-m-d') == $lnk['class_date'];
-                    $is_upcoming = $lnk['class_date'] >= date('Y-m-d');
+                    $is_today   = date('Y-m-d') == $lnk['class_date'];    // Highlight today's session
+                    $is_upcoming = $lnk['class_date'] >= date('Y-m-d');   // Only let students "join" a session that hasn't already happened
                 ?>
                     <tr <?php if ($is_today) echo 'style="background:#f0fdf4;"'; ?>>
                         <td style="font-weight:600;">
@@ -438,12 +457,14 @@ $materials = mysqli_query($conn, "
                         <td>
                             <?php if ($is_upcoming): ?>
                                 <a href="<?php echo htmlspecialchars($lnk['link_url']); ?>" target="_blank" rel="noopener" class="btn btn-small btn-primary">🔗 Join Class</a>
+                                <!-- rel="noopener" prevents the opened tab from being able to access/control this dashboard tab -->
                             <?php else: ?>
                                 <span style="font-size:.82rem; color:#94a3b8;">Session passed</span>
                             <?php endif; ?>
                         </td>
                     </tr>
                 <?php endwhile; ?>
+                <!-- One row per class link saved for any batch this student is in, capped at 20 by the query above -->
                 </tbody>
             </table></div>
             <?php else: ?>
@@ -468,6 +489,7 @@ $materials = mysqli_query($conn, "
                         <td><a href="../../uploads/materials/<?php echo urlencode($m['file_path']); ?>" target="_blank" class="btn btn-small btn-primary">📥 Download</a></td>
                     </tr>
                 <?php endwhile; ?>
+                <!-- One row per material uploaded for any batch this student is in -->
                 </tbody>
             </table></div>
             <?php else: ?>
@@ -481,21 +503,21 @@ $materials = mysqli_query($conn, "
 <!-- Sidebar active section highlight on scroll -->
 <script>
 (function() {
-    var links  = document.querySelectorAll('.sidebar-nav a');
-    var panels = [];
+    var links  = document.querySelectorAll('.sidebar-nav a'); // Every link in the sidebar
+    var panels = [];                                          // Will hold {el, link} pairs — the panel each link points to
     links.forEach(function(link) {
-        var id = link.getAttribute('href').replace('#', '');
-        var el = document.getElementById(id);
-        if (el) panels.push({ el: el, link: link });
+        var id = link.getAttribute('href').replace('#', ''); // Strip the leading "#" to get the plain panel id
+        var el = document.getElementById(id);                // Find the actual panel with that id
+        if (el) panels.push({ el: el, link: link });         // Only track links that point to a real panel on the page
     });
     function setActive() {
-        var scrollY = window.scrollY + 120;
-        var current = panels[0];
-        panels.forEach(function(p) { if (p.el.offsetTop <= scrollY) current = p; });
-        links.forEach(function(l) { l.classList.remove('active'); });
-        if (current) current.link.classList.add('active');
+        var scrollY = window.scrollY + 120;       // Small offset so a panel counts as "current" slightly before it reaches the very top
+        var current = panels[0];                   // Default to the first panel
+        panels.forEach(function(p) { if (p.el.offsetTop <= scrollY) current = p; }); // The last panel scrolled past is the "current" one
+        links.forEach(function(l) { l.classList.remove('active'); }); // Clear the active highlight from every link first
+        if (current) current.link.classList.add('active');             // Then highlight only the current one
     }
-    window.addEventListener('scroll', setActive, { passive: true });
-    setActive();
+    window.addEventListener('scroll', setActive, { passive: true }); // Re-check on every scroll
+    setActive(); // Also run once immediately on page load
 })();
 </script>
