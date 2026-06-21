@@ -6,16 +6,16 @@
 // ============================================================
 
 // Get the child linked to this parent
-$child_link  = get_one_row($conn, "SELECT student_id FROM parent_student WHERE parent_id = $user_id LIMIT 1");
-$child_id    = $child_link ? (int)$child_link['student_id'] : 0;
-$child_info  = $child_id ? get_one_row($conn, "SELECT * FROM users WHERE id = $child_id") : null;
-$child_name  = $child_info ? $child_info['full_name'] : 'Not linked';
+$child_link  = get_one_row($conn, "SELECT student_id FROM parent_student WHERE parent_id = $user_id LIMIT 1"); // A parent could theoretically have multiple children, but this dashboard only shows the first linked one
+$child_id    = $child_link ? (int)$child_link['student_id'] : 0;     // 0 means "no child linked yet"
+$child_info  = $child_id ? get_one_row($conn, "SELECT * FROM users WHERE id = $child_id") : null; // The child's user account
+$child_name  = $child_info ? $child_info['full_name'] : 'Not linked'; // Shown in the welcome message either way
 
 // Get child's batch IDs
-$child_batch_ids = [];
+$child_batch_ids = []; // Used elsewhere if we need a plain list of the batches this child is in
 $cbr = mysqli_query($conn, "SELECT batch_id FROM enrollments WHERE student_id=$child_id AND status='active'");
-while ($r = mysqli_fetch_assoc($cbr)) $child_batch_ids[] = $r['batch_id'];
-$batch_ids_str = empty($child_batch_ids) ? '0' : implode(',', $child_batch_ids);
+while ($r = mysqli_fetch_assoc($cbr)) $child_batch_ids[] = $r['batch_id']; // Build the list, one batch_id per active enrollment
+$batch_ids_str = empty($child_batch_ids) ? '0' : implode(',', $child_batch_ids); // Comma-joined string, ready to drop into an "IN (...)" SQL clause if ever needed
 
 // Child's batches
 $child_batches = mysqli_query($conn, "
@@ -52,8 +52,8 @@ $child_attendance = mysqli_query($conn, "
 ");
 
 // Child's performance points
-$pts_row     = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $child_id");
-$total_pts   = $pts_row ? (int)$pts_row['total'] : 0;
+$pts_row     = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $child_id"); // Lifetime total across every award
+$total_pts   = $pts_row ? (int)$pts_row['total'] : 0; // Falls back to 0 if the child has never been awarded points
 $child_pts   = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.id LEFT JOIN batches b ON pp.batch_id=b.id WHERE pp.student_id=$child_id ORDER BY pp.id DESC");
 
 // Child's payment history
@@ -73,7 +73,7 @@ $announcements = mysqli_query($conn, "
     LEFT JOIN users u ON a.posted_by = u.id
     WHERE a.audience IN ('all', 'parents')
     ORDER BY a.created_at DESC LIMIT 10
-");
+"); // Only shows announcements meant for everyone or specifically for parents
 
 // Class links for child's batches
 ?>
@@ -82,6 +82,7 @@ $announcements = mysqli_query($conn, "
     <aside class="sidebar">
         <div class="sidebar-header"><h3>👨‍👩‍👧 Parent Portal</h3><p><?php echo htmlspecialchars($full_name); ?></p></div>
         <nav class="sidebar-nav">
+            <!-- Each link is a same-page anchor (#id) — clicking jumps straight to that panel below -->
             <a href="#child_overview" class="active"><span class="sidebar-icon">👦</span> Child Overview</a>
             <a href="#child_batches">               <span class="sidebar-icon">🗓️</span> Batches</a>
             <a href="#child_results">               <span class="sidebar-icon">📊</span> Exam Results</a>
@@ -101,6 +102,7 @@ $announcements = mysqli_query($conn, "
             <?php if ($child_info): ?>
             <div class="stat-card">
                 <div style="font-size:2.5rem; text-align:center; margin-bottom:8px;"><?php echo strtoupper(substr($child_name, 0, 1)); ?></div>
+                <!-- First letter of the child's name, used as a simple avatar -->
                 <div class="stat-label"><?php echo htmlspecialchars($child_name); ?></div>
             </div>
             <div class="stat-card green">  <div class="stat-number"><?php echo count($child_batch_ids); ?></div> <div class="stat-label">Active Batches</div></div>
@@ -108,11 +110,12 @@ $announcements = mysqli_query($conn, "
             <?php else: ?>
             <div class="stat-card" style="grid-column:1/-1; text-align:center; padding:30px; color:#64748b;">
                 ⚠️ No student is linked to your account yet. Please contact the admin.
+                <!-- Shown only if the admin hasn't linked this parent to a student yet -->
             </div>
             <?php endif; ?>
         </div>
 
-        <?php if ($child_id): ?>
+        <?php if ($child_id): // Everything below only makes sense once a child is actually linked ?>
 
         <!-- CHILD'S BATCHES -->
         <div id="child_batches" class="panel">
@@ -127,6 +130,7 @@ $announcements = mysqli_query($conn, "
                     <div style="font-size:.82rem; color:#374151;">🕒 <?php echo htmlspecialchars($b['schedule']); ?></div>
                 </div>
                 <?php endwhile; ?>
+                <!-- One card per batch the child is actively enrolled in -->
             </div>
             <?php else: ?><p style="color:#64748b;">Not enrolled in any batch yet.</p><?php endif; ?>
         </div>
@@ -139,7 +143,7 @@ $announcements = mysqli_query($conn, "
                 <tbody>
                 <?php if ($child_results && mysqli_num_rows($child_results) > 0):
                     while ($r = mysqli_fetch_assoc($child_results)):
-                        $gc = in_array($r['grade'], ['A+','A','A-']) ? 'badge-green' : ($r['grade'] == 'E' ? 'badge-red' : 'badge-blue');
+                        $gc = in_array($r['grade'], ['A+','A','A-']) ? 'badge-green' : ($r['grade'] == 'E' ? 'badge-red' : 'badge-blue'); // Colour-code the grade pill
                 ?>
                     <tr>
                         <td><?php echo htmlspecialchars($r['subject_name']); ?></td>
@@ -151,6 +155,7 @@ $announcements = mysqli_query($conn, "
                 <?php endwhile; else: ?>
                     <tr><td colspan="5" style="text-align:center; color:#64748b;">No results yet.</td></tr>
                 <?php endif; ?>
+                <!-- One row per exam result the child has received -->
                 </tbody>
             </table></div>
         </div>
@@ -163,7 +168,7 @@ $announcements = mysqli_query($conn, "
                 <tbody>
                 <?php if ($child_attendance && mysqli_num_rows($child_attendance) > 0):
                     while ($at = mysqli_fetch_assoc($child_attendance)):
-                        $pct = $at['total'] > 0 ? round(($at['present'] / $at['total']) * 100) : 0;
+                        $pct = $at['total'] > 0 ? round(($at['present'] / $at['total']) * 100) : 0; // Avoid divide-by-zero if no attendance has been recorded for a batch yet
                 ?>
                     <tr>
                         <td><?php echo htmlspecialchars($at['subject_name']); ?> – <?php echo htmlspecialchars($at['batch_name']); ?></td>
@@ -176,6 +181,7 @@ $announcements = mysqli_query($conn, "
                 <?php endwhile; else: ?>
                     <tr><td colspan="6" style="text-align:center; color:#64748b;">No attendance records yet.</td></tr>
                 <?php endif; ?>
+                <!-- One row per batch the child is in, summarised by attendance status -->
                 </tbody>
             </table></div>
         </div>
@@ -193,10 +199,12 @@ $announcements = mysqli_query($conn, "
                         <td><span style="color:#d97706; font-weight:700;">+<?php echo $pt['points']; ?></span></td>
                         <td><?php echo htmlspecialchars($pt['awarded_by_name']); ?></td>
                         <td><?php echo htmlspecialchars($pt['reason'] ?: '—'); ?></td>
+                        <!-- Falls back to an em-dash if no reason was given -->
                     </tr>
                 <?php endwhile; else: ?>
                     <tr><td colspan="4" style="text-align:center; color:#64748b;">No points awarded yet.</td></tr>
                 <?php endif; ?>
+                <!-- One row per performance points award the child has received -->
                 </tbody>
             </table></div>
         </div>
@@ -209,7 +217,7 @@ $announcements = mysqli_query($conn, "
                 <tbody>
                 <?php if ($child_payments && mysqli_num_rows($child_payments) > 0):
                     while ($p = mysqli_fetch_assoc($child_payments)):
-                        $pb = $p['status'] == 'approved' ? 'badge-green' : ($p['status'] == 'rejected' ? 'badge-red' : 'badge-yellow');
+                        $pb = $p['status'] == 'approved' ? 'badge-green' : ($p['status'] == 'rejected' ? 'badge-red' : 'badge-yellow'); // Colour-code the status pill
                 ?>
                     <tr>
                         <td><?php echo htmlspecialchars($p['receipt_no'] ?: '—'); ?></td>
@@ -220,12 +228,14 @@ $announcements = mysqli_query($conn, "
                         <td>
                             <?php if ($p['status'] == 'approved'): ?>
                                 <a href="print_receipt.php?id=<?php echo $p['id']; ?>" target="_blank" class="btn btn-small btn-primary">🖨️</a>
+                                <!-- Only meaningful once a payment is approved -->
                             <?php else: ?><span style="color:#94a3b8; font-size:.78rem;">N/A</span><?php endif; ?>
                         </td>
                     </tr>
                 <?php endwhile; else: ?>
                     <tr><td colspan="6" style="text-align:center; color:#64748b;">No payment records.</td></tr>
                 <?php endif; ?>
+                <!-- One row per payment ever made for this child -->
                 </tbody>
             </table></div>
         </div>
@@ -244,6 +254,7 @@ $announcements = mysqli_query($conn, "
                 </div>
             <?php endwhile; else: ?>
                 <p style="color:#64748b;">No announcements at this time.</p>
+                <!-- Shown only if there are zero announcements aimed at 'all' or 'parents' -->
             <?php endif; ?>
         </div>
     </main>
@@ -252,21 +263,21 @@ $announcements = mysqli_query($conn, "
 <!-- Sidebar active section highlight -->
 <script>
 (function() {
-    var links  = document.querySelectorAll('.sidebar-nav a');
-    var panels = [];
+    var links  = document.querySelectorAll('.sidebar-nav a'); // Every link in the sidebar
+    var panels = [];                                          // Will hold {el, link} pairs — the panel each link points to
     links.forEach(function(link) {
-        var id = link.getAttribute('href').replace('#', '');
-        var el = document.getElementById(id);
-        if (el) panels.push({ el: el, link: link });
+        var id = link.getAttribute('href').replace('#', ''); // Strip the leading "#" from e.g. "#child_results" to get "child_results"
+        var el = document.getElementById(id);                // Find the actual panel with that id
+        if (el) panels.push({ el: el, link: link });         // Only track links that point to a real panel on the page
     });
     function setActive() {
-        var scrollY = window.scrollY + 120;
-        var current = panels[0];
-        panels.forEach(function(p) { if (p.el.offsetTop <= scrollY) current = p; });
-        links.forEach(function(l) { l.classList.remove('active'); });
-        if (current) current.link.classList.add('active');
+        var scrollY = window.scrollY + 120;       // Add a small offset so a panel counts as "current" slightly before it reaches the very top
+        var current = panels[0];                   // Default to the first panel
+        panels.forEach(function(p) { if (p.el.offsetTop <= scrollY) current = p; }); // The last panel whose top has been scrolled past is the "current" one
+        links.forEach(function(l) { l.classList.remove('active'); }); // Clear the active highlight from every link first
+        if (current) current.link.classList.add('active');             // Then highlight only the current one
     }
-    window.addEventListener('scroll', setActive, { passive: true });
-    setActive();
+    window.addEventListener('scroll', setActive, { passive: true }); // Re-check on every scroll; passive:true improves scroll performance
+    setActive(); // Also run once immediately on page load
 })();
 </script>
