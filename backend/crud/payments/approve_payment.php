@@ -1,24 +1,228 @@
 <?php
 // ============================================================
-//  approve_payment.php — Approve or Reject a Payment
+// approve_payment.php
+// Purpose: Approve or reject a payment request
 // ============================================================
 
+
+// ------------------------------------------------------------
+// START SESSION
+// ------------------------------------------------------------
+// Starts or resumes session.
+// Gives access to:
+// $_SESSION['user_id'], $_SESSION['role']
 session_start();
+
+
+// ------------------------------------------------------------
+// DATABASE CONNECTION
+// ------------------------------------------------------------
+// Include database connection file.
+// Provides $conn for MySQL queries
 require '../../config/db.php';
 
-if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['admin','manager','receptionist'])) {
-    header("Location: ../../../frontend/pages/login.php"); exit();
+
+// ------------------------------------------------------------
+// AUTHORIZATION CHECK
+// ------------------------------------------------------------
+// Only these roles can approve/reject payments:
+// - admin
+// - manager
+// - receptionist
+//
+// If user is not logged in OR role not allowed,
+// redirect to login page.
+if (
+    !isset($_SESSION['user_id']) ||
+    !in_array(
+        $_SESSION['role'],
+        ['admin','manager','receptionist']
+    )
+) {
+    header("Location: ../../../frontend/pages/login.php");
+    exit();
 }
 
-$id     = (int)($_GET['id'] ?? 0);
+
+// ------------------------------------------------------------
+// GET PARAMETERS
+// ------------------------------------------------------------
+
+// Payment ID from URL
+$id = (int)($_GET['id'] ?? 0);
+
+// Action from URL (approve or reject)
 $action = $_GET['action'] ?? '';
 
-// Only allow 'approve' or 'reject' as valid actions
-if ($id > 0 && in_array($action, ['approve', 'reject'])) {
-    $status = ($action == 'approve') ? 'approved' : 'rejected';
-    mysqli_query($conn, "UPDATE payments SET status='$status' WHERE id=$id");
+
+// ------------------------------------------------------------
+// VALIDATION
+// ------------------------------------------------------------
+// Only allow valid actions: approve or reject
+if (
+    $id > 0 &&
+    in_array($action, ['approve', 'reject'])
+) {
+
+    // --------------------------------------------------------
+    // DETERMINE STATUS
+    // --------------------------------------------------------
+    // Convert action into database status value
+    $status = ($action == 'approve')
+        ? 'approved'
+        : 'rejected';
+
+
+    // --------------------------------------------------------
+    // UPDATE PAYMENT STATUS
+    // --------------------------------------------------------
+    mysqli_query(
+        $conn,
+        "UPDATE payments
+         SET status='$status'
+         WHERE id=$id"
+    );
 }
 
-$status_word = ($action == 'approve') ? 'Approved' : 'Rejected';
-header("Location: ../../../frontend/pages/dashboard.php?msg=Payment+" . $status_word);
+
+// ------------------------------------------------------------
+// USER-FRIENDLY MESSAGE
+// ------------------------------------------------------------
+// Convert action into readable word for UI message
+$status_word = ($action == 'approve')
+    ? 'Approved'
+    : 'Rejected';
+
+
+// ------------------------------------------------------------
+// REDIRECT USER
+// ------------------------------------------------------------
+// Send user back to dashboard with status message
+header(
+    "Location: ../../../frontend/pages/dashboard.php?msg=Payment+" .
+    $status_word
+);
+
+
+// Stop script execution
 exit();
+
+
+
+/* ============================================================
+VARIABLE EXPLANATIONS
+============================================================
+
+$conn
+- Database connection object
+
+$_SESSION['user_id']
+- Logged-in user ID
+
+$_SESSION['role']
+- User role (admin/manager/receptionist)
+
+$_GET['id']
+- Payment ID from URL
+
+$_GET['action']
+- Action type (approve or reject)
+
+$id
+- Clean integer payment ID
+
+$action
+- Action string from request
+
+$status
+- Database status value (approved/rejected)
+
+$status_word
+- Human-readable message text
+
+============================================================
+FUNCTION EXPLANATIONS
+============================================================
+
+session_start()
+- Starts session
+
+require()
+- Loads DB connection
+
+isset()
+- Checks variable existence
+
+in_array()
+- Checks value in array
+
+mysqli_query()
+- Executes SQL query
+
+header()
+- Redirects browser
+
+exit()
+- Stops execution
+
+(int)
+- Converts value to integer
+
+============================================================
+EXAMPLE URLS
+============================================================
+
+Approve Payment:
+approve_payment.php?id=5&action=approve
+
+Reject Payment:
+approve_payment.php?id=5&action=reject
+
+============================================================
+DATABASE QUERY
+============================================================
+
+UPDATE payments
+SET status='approved'
+WHERE id=5;
+
+OR
+
+UPDATE payments
+SET status='rejected'
+WHERE id=5;
+
+Purpose:
+Updates payment status in database.
+
+============================================================
+PROGRAM FLOW
+============================================================
+
+1. Start Session
+2. Connect Database
+3. Check User Role
+4. Read Payment ID + Action
+5. Validate Action
+6. Update Payment Status
+7. Build Message
+8. Redirect Dashboard
+
+============================================================
+SECURITY IMPROVEMENTS
+============================================================
+
+1. Use prepared statements
+
+2. Validate payment ownership or existence
+
+3. Log approval/rejection actions
+
+4. Prevent repeated updates (idempotency check)
+
+5. Ensure status only allowed values:
+   - pending
+   - approved
+   - rejected
+
+============================================================ */
