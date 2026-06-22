@@ -1,81 +1,520 @@
 <?php
 // ============================================================
-//  add_user.php — Add a New User
-//  Only admins can access this page.
+// add_user.php
+// Purpose: Create a new system user (admin only)
 // ============================================================
 
+
+// ------------------------------------------------------------
+// START SESSION
+// ------------------------------------------------------------
+// Enables session handling:
+// $_SESSION['user_id'], $_SESSION['role']
 session_start();
+
+
+// ------------------------------------------------------------
+// DATABASE CONNECTION
+// ------------------------------------------------------------
+// Provides $conn (MySQL connection)
 require '../../config/db.php';
 
-// Only admins can add users
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
+
+// ------------------------------------------------------------
+// AUTHORIZATION CHECK
+// ------------------------------------------------------------
+// Only ADMIN can create users.
+//
+// If unauthorized → redirect to login page
+if (
+    !isset($_SESSION['user_id']) ||
+    $_SESSION['role'] != 'admin'
+) {
     header("Location: ../../../frontend/pages/login.php");
     exit();
 }
 
+
+// ------------------------------------------------------------
+// INITIAL MESSAGES
+// ------------------------------------------------------------
+// Stores error or success messages
 $error = $success = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Collect and clean inputs
-    $username      = mysqli_real_escape_string($conn, trim($_POST['username']));
-    $password_raw  = trim($_POST['password']);
-    $password      = mysqli_real_escape_string($conn, password_hash($password_raw, PASSWORD_DEFAULT));
-    $fullname = mysqli_real_escape_string($conn, trim($_POST['full_name']));
-    $email    = mysqli_real_escape_string($conn, trim($_POST['email']));
-    $phone    = mysqli_real_escape_string($conn, trim($_POST['phone']));
-    $role     = mysqli_real_escape_string($conn, $_POST['role']);
-    $status   = mysqli_real_escape_string($conn, $_POST['status']);
 
-    if (empty($username) || empty($password_raw) || empty($fullname) || empty($role)) {
-        $error = "Username, password, name and role are required.";
+// ------------------------------------------------------------
+// FORM HANDLER
+// ------------------------------------------------------------
+// Runs when form is submitted
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+
+    // --------------------------------------------------------
+    // INPUT COLLECTION
+    // --------------------------------------------------------
+
+    // Username
+    $username = mysqli_real_escape_string(
+        $conn,
+        trim($_POST['username'])
+    );
+
+    // Raw password (before hashing)
+    $password_raw = trim($_POST['password']);
+
+    // Hashed password (secure storage)
+    $password = mysqli_real_escape_string(
+        $conn,
+        password_hash($password_raw, PASSWORD_DEFAULT)
+    );
+
+    // Full name
+    $fullname = mysqli_real_escape_string(
+        $conn,
+        trim($_POST['full_name'])
+    );
+
+    // Email
+    $email = mysqli_real_escape_string(
+        $conn,
+        trim($_POST['email'])
+    );
+
+    // Phone
+    $phone = mysqli_real_escape_string(
+        $conn,
+        trim($_POST['phone'])
+    );
+
+    // Role
+    $role = mysqli_real_escape_string(
+        $conn,
+        $_POST['role']
+    );
+
+    // Status
+    $status = mysqli_real_escape_string(
+        $conn,
+        $_POST['status']
+    );
+
+
+    // --------------------------------------------------------
+    // VALIDATION CHECK
+    // --------------------------------------------------------
+    if (
+        empty($username) ||
+        empty($password_raw) ||
+        empty($fullname) ||
+        empty($role)
+    ) {
+
+        $error =
+            "Username, password, name and role are required.";
+
     } else {
-        // Check if username already taken
-        $chk = mysqli_query($conn, "SELECT id FROM users WHERE username='$username'");
+
+        // ----------------------------------------------------
+        // CHECK DUPLICATE USERNAME
+        // ----------------------------------------------------
+        $chk = mysqli_query(
+            $conn,
+            "SELECT id FROM users WHERE username='$username'"
+        );
+
         if (mysqli_num_rows($chk) > 0) {
-            $error = "Username already exists. Choose a different one.";
+
+            $error =
+                "Username already exists. Choose a different one.";
+
         } else {
-            // Insert the new user
-            mysqli_query($conn, "INSERT INTO users (username, password, full_name, email, phone, role, status) VALUES ('$username','$password','$fullname','$email','$phone','$role','$status')");
-            header("Location: ../../../frontend/pages/dashboard.php?msg=User+added+successfully");
+
+            // ------------------------------------------------
+            // INSERT NEW USER
+            // ------------------------------------------------
+            mysqli_query(
+                $conn,
+                "INSERT INTO users
+                (
+                    username,
+                    password,
+                    full_name,
+                    email,
+                    phone,
+                    role,
+                    status
+                )
+                VALUES
+                (
+                    '$username',
+                    '$password',
+                    '$fullname',
+                    '$email',
+                    '$phone',
+                    '$role',
+                    '$status'
+                )"
+            );
+
+            // Redirect on success
+            header(
+                "Location: ../../../frontend/pages/dashboard.php?msg=User+added+successfully"
+            );
+
             exit();
         }
     }
 }
 
-$page_title = "Add User"; $css_path = "../../../frontend/assets/css/style.css"; $root_path = "../../../"; $active_page = "";
+
+// ------------------------------------------------------------
+// PAGE SETTINGS
+// ------------------------------------------------------------
+
+// Page title
+$page_title = "Add User";
+
+// CSS file path
+$css_path = "../../../frontend/assets/css/style.css";
+
+// Root path
+$root_path = "../../../";
+
+// Active menu item
+$active_page = "";
+
+
+// Include header layout
 include '../../../frontend/assets/header.php';
 ?>
-<div class="section" style="max-width:560px; margin:0 auto;">
-    <h2 class="section-title">➕ Add New User</h2>
-    <?php if ($error): ?><div style="background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;margin-bottom:16px;">❌ <?php echo $error; ?></div><?php endif; ?>
+
+
+<!-- ==========================================================
+PAGE UI
+========================================================== -->
+
+<div
+    class="section"
+    style="max-width:560px; margin:0 auto;"
+>
+
+    <!-- Title -->
+    <h2 class="section-title">
+        ➕ Add New User
+    </h2>
+
+
+    <!-- Error Message -->
+    <?php if ($error): ?>
+        <div
+            style="
+                background:#fee2e2;
+                color:#991b1b;
+                padding:12px;
+                border-radius:8px;
+                margin-bottom:16px;
+            "
+        >
+            ❌ <?php echo $error; ?>
+        </div>
+    <?php endif; ?>
+
+
+    <!-- Form Card -->
     <div class="card">
+
         <form method="POST">
+
+            <!-- Full Name + Username -->
             <div class="form-row">
-                <div class="form-group"><label>Full Name *</label><input type="text" name="full_name" required></div>
-                <div class="form-group"><label>Username *</label><input type="text" name="username" required></div>
-            </div>
-            <div class="form-row">
-                <div class="form-group"><label>Password *</label><input type="text" name="password" required></div>
+
                 <div class="form-group">
-                    <label>Role *</label>
-                    <select name="role" required>
-                        <?php foreach (['admin','manager','director','lecturer','receptionist','student','parent'] as $r): ?>
-                            <option value="<?php echo $r; ?>"><?php echo ucfirst($r); ?></option>
-                        <?php endforeach; ?>
-                    </select>
+
+                    <label>
+                        Full Name *
+                    </label>
+
+                    <input
+                        type="text"
+                        name="full_name"
+                        required
+                    >
+
                 </div>
+
+                <div class="form-group">
+
+                    <label>
+                        Username *
+                    </label>
+
+                    <input
+                        type="text"
+                        name="username"
+                        required
+                    >
+
+                </div>
+
             </div>
+
+
+            <!-- Password + Role -->
             <div class="form-row">
-                <div class="form-group"><label>Email</label><input type="email" name="email"></div>
-                <div class="form-group"><label>Phone</label><input type="text" name="phone"></div>
+
+                <div class="form-group">
+
+                    <label>
+                        Password *
+                    </label>
+
+                    <input
+                        type="text"
+                        name="password"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>
+                        Role *
+                    </label>
+
+                    <select
+                        name="role"
+                        required
+                    >
+
+                        <?php foreach (
+                            [
+                                'admin',
+                                'manager',
+                                'director',
+                                'lecturer',
+                                'receptionist',
+                                'student',
+                                'parent'
+                            ] as $r
+                        ): ?>
+
+                            <option value="<?php echo $r; ?>">
+                                <?php echo ucfirst($r); ?>
+                            </option>
+
+                        <?php endforeach; ?>
+
+                    </select>
+
+                </div>
+
             </div>
+
+
+            <!-- Email + Phone -->
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label>
+                        Email
+                    </label>
+
+                    <input
+                        type="email"
+                        name="email"
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>
+                        Phone
+                    </label>
+
+                    <input
+                        type="text"
+                        name="phone"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- Status -->
             <div class="form-group">
-                <label>Status</label>
-                <select name="status"><option value="active">Active</option><option value="inactive">Inactive</option></select>
+
+                <label>
+                    Status
+                </label>
+
+                <select name="status">
+
+                    <option value="active">
+                        Active
+                    </option>
+
+                    <option value="inactive">
+                        Inactive
+                    </option>
+
+                </select>
+
             </div>
-            <button type="submit" class="btn btn-primary">✅ Add User</button>
-            <a href="../../../frontend/pages/dashboard.php" class="btn btn-outline" style="margin-left:8px;">Cancel</a>
+
+
+            <!-- Submit -->
+            <button
+                type="submit"
+                class="btn btn-primary"
+            >
+                ✅ Add User
+            </button>
+
+
+            <!-- Cancel -->
+            <a
+                href="../../../frontend/pages/dashboard.php"
+                class="btn btn-outline"
+                style="margin-left:8px;"
+            >
+                Cancel
+            </a>
+
         </form>
+
     </div>
+
 </div>
-<?php mysqli_close($conn); include '../../../frontend/assets/footer.php'; ?>
+
+
+<?php
+
+// ------------------------------------------------------------
+// CLOSE DATABASE CONNECTION
+// ------------------------------------------------------------
+mysqli_close($conn);
+
+
+// Include footer
+include '../../../frontend/assets/footer.php';
+
+?>
+
+
+/* ============================================================
+VARIABLE EXPLANATIONS
+============================================================
+
+$conn
+- Database connection object
+
+$username
+- Login username
+
+$password_raw
+- Plain password input
+
+$password
+- Hashed password (bcrypt)
+
+$fullname
+- Full name of user
+
+$email
+- Email address
+
+$phone
+- Phone number
+
+$role
+- User role (admin, lecturer, etc.)
+
+$status
+- Account status (active/inactive)
+
+$error
+- Error message
+
+$chk
+- Username duplicate check result
+
+============================================================
+FUNCTION EXPLANATIONS
+============================================================
+
+session_start()
+- Starts session
+
+require()
+- Loads DB connection
+
+trim()
+- Removes whitespace
+
+mysqli_real_escape_string()
+- Prevents SQL injection
+
+password_hash()
+- Securely hashes password
+
+mysqli_query()
+- Executes SQL query
+
+mysqli_num_rows()
+- Counts query results
+
+header()
+- Redirects browser
+
+exit()
+- Stops script
+
+ucfirst()
+- Capitalizes first letter
+
+htmlspecialchars()
+- Prevents XSS
+
+============================================================
+SQL QUERY
+============================================================
+
+INSERT INTO users
+(username, password, full_name, email, phone, role, status)
+VALUES (...)
+
+Purpose:
+Creates new system user
+
+============================================================
+PROGRAM FLOW
+============================================================
+
+1. Start Session
+2. Check Admin Role
+3. Load Form
+4. User submits data
+5. Validate input
+6. Check duplicate username
+7. Hash password
+8. Insert user
+9. Redirect dashboard
+
+============================================================
+SECURITY IMPROVEMENTS
+============================================================
+
+1. Force strong passwords
+
+2. Use prepared statements
+
+3. Add email uniqueness check
+
+4. Log user creation events
+
+5. Avoid storing password in logs
+
+============================================================ */
