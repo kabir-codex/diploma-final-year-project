@@ -35,7 +35,7 @@ include 'frontend/assets/header.php';
     <p>A modern learning institute dedicated to academic excellence and student success.</p>
     <a href="frontend/pages/courses.php" class="btn btn-primary">Explore Courses</a>
     &nbsp;&nbsp;
-    <a href="frontend/pages/login.php" class="btn btn-outline">Student Login</a>
+    <a href="frontend/pages/login.php" class="btn btn-outline">Login</a>
 
     <!-- Quick stats shown in the hero -->
     <div class="hero-stats">
