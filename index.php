@@ -44,7 +44,7 @@ include 'frontend/assets/header.php';
         <div class="hero-stat"><h3><?php echo $total_batches; ?></h3><p>Active Batches</p></div>
     </div>
 </section>
-//
+
 <!-- Why Choose Us Section -->
 <div class="section">
     <h2 class="section-title">Why Choose Activate Academy?</h2>
