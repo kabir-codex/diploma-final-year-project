@@ -145,6 +145,151 @@ include '../../../frontend/assets/header.php';
 <!-- ==========================================================
 PAGE UI
 ========================================================== -->
+<div
+    class="section"
+    style="max-width:520px; margin:0 auto;"
+>
+
+    <!-- Page Title -->
+    <h2 class="section-title">
+        📚 Add New Subject
+    </h2>
+
+
+    <!-- Error Message -->
+    <?php if (isset($error)): ?>
+        <div
+            style="
+                background:#fee2e2;
+                color:#991b1b;
+                padding:12px;
+                border-radius:8px;
+                margin-bottom:16px;
+            "
+        >
+            ❌ <?php echo $error; ?>
+        </div>
+    <?php endif; ?>
+
+
+    <!-- Form Card -->
+    <div class="card">
+
+        <form method="POST">
+
+            <!-- Subject Name + Code -->
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label>
+                        Subject Name *
+                    </label>
+
+                    <input
+                        type="text"
+                        name="name"
+                        placeholder="e.g. Mathematics"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>
+                        Code *
+                    </label>
+
+                    <input
+                        type="text"
+                        name="code"
+                        placeholder="e.g. MATH-OL"
+                        required
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- Level + Fee -->
+            <div class="form-row">
+
+                <div class="form-group">
+
+                    <label>
+                        Level
+                    </label>
+
+                    <select name="level">
+
+                        <option value="O/L">O/L</option>
+                        <option value="A/L">A/L</option>
+                        <option value="Primary">Primary</option>
+                        <option value="Other">Other</option>
+
+                    </select>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label>
+                        Monthly Fee (LKR)
+                    </label>
+
+                    <input
+                        type="number"
+                        name="fee"
+                        value="0"
+                        min="0"
+                        step="0.01"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <!-- Description -->
+            <div class="form-group">
+
+                <label>
+                    Description
+                </label>
+
+                <textarea
+                    name="description"
+                    placeholder="Brief description..."
+                ></textarea>
+
+            </div>
+
+
+            <!-- Submit Button -->
+            <button
+                type="submit"
+                class="btn btn-primary"
+            >
+                 Add Subject
+            </button>
+
+
+            <!-- Cancel Button -->
+            <a
+                href="../../../frontend/pages/dashboard.php"
+                class="btn btn-outline"
+                style="margin-left:8px;"
+            >
+                Cancel
+            </a>
+
+        </form>
+
+    </div>
+
+</div>
 
 
 
