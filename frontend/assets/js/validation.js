@@ -95,8 +95,4 @@
         });
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('form').forEach(setupForm);
-    });
-
-})();
+   
