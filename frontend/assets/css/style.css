@@ -3,23 +3,7 @@
    Loaded via header.php (with cache-busting) on every page.
     ======================================= */
 
-:root {
-    /* Reusable colour/spacing values — change once here to re-theme the whole site */
-    --primary:       #1a3a5c; /* Main dark navy brand colour (nav bar, headings, buttons) */
-    --primary-light: #2563eb; /* Brighter blue used in gradients and links */
-    --accent:        #f59e0b; /* Amber accent colour (logo highlight, login buttons) */
-    --success:       #16a34a; /* Green — used for "good" states (active, approved, present) */
-    --danger:        #dc2626; /* Red — used for "bad" states (rejected, absent, delete) */
-    --warning:       #d97706; /* Orange — used for "caution" states (pending, late) */
-    --bg:            #f0f4f8; /* Page background colour */
-    --card-bg:       #ffffff; /* Card/panel background colour */
-    --border:        #e2e8f0; /* Default border colour */
-    --text-dark:     #1e293b; /* Main body text colour */
-    --text-mid:      #374151; /* Slightly lighter text colour */
-    --text-light:    #64748b; /* Muted/secondary text colour */
-    --radius:        10px;    /* Default corner rounding for cards/panels */
-    --shadow:        0 2px 12px rgba(0,0,0,0.08); /* Default soft drop shadow */
-}
+
 
 * { margin:0; padding:0; box-sizing:border-box; } /* Reset default browser spacing and make width/height include padding+border */
 
