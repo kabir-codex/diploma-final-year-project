@@ -10,7 +10,3 @@
 // Fall back to an empty string if a page forgot to set it, so the include never breaks.
 $root_path = $root_path ?? '';
 ?>
-<script src="<?php echo $root_path; ?>frontend/assets/js/validation.js"></script>
-
-</body>
-</html>
