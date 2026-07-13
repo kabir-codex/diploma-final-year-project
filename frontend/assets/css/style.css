@@ -25,16 +25,7 @@
 
 * { margin:0; padding:0; box-sizing:border-box; } /* Reset default browser spacing and make width/height include padding+border */
 
-body {
-    font-family: 'Segoe UI', Arial, sans-serif; /* Base font for the whole site */
-    background:  var(--bg);
-    color:       var(--text-dark);
-    line-height: 1.6;
-    font-size:   0.93rem;
-    min-height:  100vh;            /* Body always fills at least the full viewport height */
-    display:     flex;             /* Flex column so the footer naturally sticks to the bottom on short pages */
-    flex-direction: column;
-}
+
 
 main, .section, .dashboard-wrapper { flex:1; } /* These grow to fill remaining space, pushing the footer down */
 a { color:var(--primary-light); text-decoration:none; }     /* Default link style: no underline */
