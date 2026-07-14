@@ -52,10 +52,10 @@
         }
 
         // Email format check
-       // Check email fields only if they contain a value
-        if (input.type === 'email' && value !== '' && !EMAIL_REGEX.test(value)) {
-            showError(input, 'Please enter a valid email address.');
-            return false;
+       
+        if (input.type === 'email' && value !== '' && !EMAIL_REGEX.test(value)) {   // Check email fields only if they contain a value
+            showError(input, 'Please enter a valid email address.');               // Display invalid email message
+            return false;                                                          // Return false because validation failed
         }
 
         // Mobile number check: exactly 10 digits
@@ -90,16 +90,19 @@
             });
         });
 
+        // Validate all fields before submitting the form
         form.addEventListener('submit', function (e) {
-            var valid = true;
-            fields.forEach(function (input) {
-                if (input.type === 'hidden' || input.disabled) return;
-                if (!validateField(input)) valid = false;
+            var valid = true;                                       // Assume form is valid initially
+            fields.forEach(function (input) {                          // Check every field in the form
+                if (input.type === 'hidden' || input.disabled) return;          // Ignore hidden or disabled fields
+                if (!validateField(input)) valid = false;                    // If any field fails validation, mark the form as invalid
             });
+
+            // Prevent form submission if validation fails
             if (!valid) {
                 e.preventDefault();
-                var firstError = form.querySelector('.input-error');
-                if (firstError) firstError.focus();
+                var firstError = form.querySelector('.input-error');            // Find the first invalid input field
+                if (firstError) firstError.focus();                              // Automatically focus the first field with an error
             }
         });
     }
