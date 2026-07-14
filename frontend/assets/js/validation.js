@@ -19,19 +19,24 @@
         return key.indexOf('phone') !== -1 || key.indexOf('mobile') !== -1;   // Return true if the field name or id contains "phone" or "mobile"
     }
 
+     // Displays an error message below an input field
+    
     function showError(input, message) {
+         // Remove any existing error message before adding a new one
         clearError(input);
-        var msg = document.createElement('small');
-        msg.className = 'field-error';
-        msg.textContent = message;
-        input.classList.add('input-error');
-        input.insertAdjacentElement('afterend', msg);
+        
+        var msg = document.createElement('small');    // Create a small HTML element to display the error message
+        msg.className = 'field-error';                  // Apply CSS class for styling the error message
+        msg.textContent = message;                    // Add the provided error message text safely
+        input.classList.add('input-error');                // Add error styling to the invalid input field
+        input.insertAdjacentElement('afterend', msg);      // Insert the error message directly after the input field
     }
 
+    // Removes an error message and error styling from an input field
     function clearError(input) {
-        input.classList.remove('input-error');
-        var next = input.nextElementSibling;
-        if (next && next.classList.contains('field-error')) {
+        input.classList.remove('input-error');   // Remove the CSS error class from the input
+        var next = input.nextElementSibling;       // Check if the next element is an existing error message
+        if (next && next.classList.contains('field-error')) {        // Remove the error message element if it exists
             next.parentNode.removeChild(next);
         }
     }
