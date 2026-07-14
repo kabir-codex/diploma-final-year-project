@@ -50,9 +50,9 @@
         }
 
         // Mobile number check: exactly 10 digits
-        if (isPhoneField(input) && value !== '') {
-            if (!/^[0-9]{10}$/.test(value)) {
-                showError(input, 'Mobile number must be exactly 10 digits.');
+        if (isPhoneField(input) && value !== '') {  //checks the phone filed if its blank
+            if (!/^[0-9]{10}$/.test(value)) {        //checks input doesnt have only numbers and have 10 digits
+                showError(input, 'Mobile number must be exactly 10 digits.');     //then gives this ouput
                 return false;
             }
         }
