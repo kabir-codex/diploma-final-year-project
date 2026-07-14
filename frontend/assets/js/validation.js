@@ -10,11 +10,13 @@
 
 (function () {
 
-    var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    var EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;   //check if an email address has a valid format
 
+    // Checks whether an input field is related to a phone/mobile number
+    
     function isPhoneField(input) {
-        var key = (input.name + ' ' + input.id).toLowerCase();
-        return key.indexOf('phone') !== -1 || key.indexOf('mobile') !== -1;
+        var key = (input.name + ' ' + input.id).toLowerCase();          // Combine the input name and id, then convert to lowercase
+        return key.indexOf('phone') !== -1 || key.indexOf('mobile') !== -1;   // Return true if the field name or id contains "phone" or "mobile"
     }
 
     function showError(input, message) {
