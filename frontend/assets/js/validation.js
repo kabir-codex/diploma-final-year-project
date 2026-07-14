@@ -41,16 +41,18 @@
         }
     }
 
+    // Validates an individual form field
     function validateField(input) {
-        var value = input.value.trim();
+        var value = input.value.trim();       // Get the input value and remove extra spaces
 
         // Required field check
-        if (input.hasAttribute('required') && value === '') {
-            showError(input, 'This field is required.');
-            return false;
+        if (input.hasAttribute('required') && value === '') {    // Check if required fields are empty
+            showError(input, 'This field is required.');            // Display required field error message
+            return false;                                           // Return false because validation failed
         }
 
         // Email format check
+       // Check email fields only if they contain a value
         if (input.type === 'email' && value !== '' && !EMAIL_REGEX.test(value)) {
             showError(input, 'Please enter a valid email address.');
             return false;
