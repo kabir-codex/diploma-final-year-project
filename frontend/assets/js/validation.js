@@ -73,9 +73,10 @@
     }
 
     function attachPhoneDigitFilter(input) {
+        
         // Only allow numeric characters to be typed, capped at 10 digits
         input.addEventListener('input', function () {
-            input.value = input.value.replace(/[^0-9]/g, '').slice(0, 10);
+            input.value = input.value.replace(/[^0-9]/g, '').slice(0, 10);        // Remove anything that isn't a digit.Then limit the length to 10 characters.
         });
     }
 
