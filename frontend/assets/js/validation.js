@@ -79,6 +79,11 @@
         });
     }
 
+    // ----------------------------------------------------------
+    // Sets up validation for one form.
+    // This function is called once for every form
+    // found on the page.
+    // ----------------------------------------------------------
     function setupForm(form) {
         var fields = form.querySelectorAll('input, select, textarea');
 
@@ -92,6 +97,7 @@
             });
         });
 
+        
         // Validate all fields before submitting the form
         form.addEventListener('submit', function (e) {
             var valid = true;                                       // Assume form is valid initially
@@ -108,6 +114,12 @@
             }
         });
     }
+
+   // ----------------------------------------------------------
+    // Wait until the page has fully loaded,
+    // then automatically apply validation
+    // to every form on the page.
+    // ----------------------------------------------------------
 
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('form').forEach(setupForm);
