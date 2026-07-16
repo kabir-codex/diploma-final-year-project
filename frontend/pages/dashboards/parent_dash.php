@@ -56,6 +56,25 @@ $pts_row     = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_
 $total_pts   = $pts_row ? (int)$pts_row['total'] : 0; // Falls back to 0 if the child has never been awarded points
 $child_pts   = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.id LEFT JOIN batches b ON pp.batch_id=b.id WHERE pp.student_id=$child_id ORDER BY pp.id DESC");
 
+// Leaderboard: every student ranked by total performance points earned across all their batches
+$leaderboard_result = mysqli_query($conn, "
+    SELECT u.id, u.full_name, COALESCE(SUM(pp.points), 0) AS total_points
+    FROM users u
+    LEFT JOIN performance_points pp ON pp.student_id = u.id
+    WHERE u.role = 'student'
+    GROUP BY u.id, u.full_name
+    ORDER BY total_points DESC, u.full_name ASC
+"); // Points from every batch a student attended count toward their rank, regardless of which lecturer awarded them
+$leaderboard_rows = []; // Plain array version, so it can be looped once for the table and reused to find the child's rank
+$child_rank       = 0;  // 0 means "not found" (e.g. no child linked yet)
+$lb_rank          = 1;  // Running rank counter as we walk the already-sorted result
+while ($lb = mysqli_fetch_assoc($leaderboard_result)) {
+    $lb['rank'] = $lb_rank;
+    if ($lb['id'] == $child_id) $child_rank = $lb_rank; // This is the linked child's row — remember their rank
+    $leaderboard_rows[] = $lb;
+    $lb_rank++;
+}
+
 // Child's payment history
 $child_payments = mysqli_query($conn, "
     SELECT p.*, b.batch_name, s.name AS subject_name
@@ -88,6 +107,7 @@ $announcements = mysqli_query($conn, "
             <a href="#child_results">               <span class="sidebar-icon">📊</span> Exam Results</a>
             <a href="#child_attendance">            <span class="sidebar-icon">✅</span> Attendance</a>
             <a href="#child_points">                <span class="sidebar-icon">⭐</span> Points</a>
+            <a href="#leaderboard">                 <span class="sidebar-icon">🏆</span> Leaderboard</a>
             <a href="#child_payments">              <span class="sidebar-icon">💳</span> Payments</a>
             <a href="#announcements">               <span class="sidebar-icon">📢</span> Announcements</a>
         </nav>
@@ -205,6 +225,32 @@ $announcements = mysqli_query($conn, "
                     <tr><td colspan="4" style="text-align:center; color:#64748b;">No points awarded yet.</td></tr>
                 <?php endif; ?>
                 <!-- One row per performance points award the child has received -->
+                </tbody>
+            </table></div>
+        </div>
+
+        <!-- LEADERBOARD ENTRY -->
+        <div id="leaderboard" class="panel">
+            <div class="panel-title">🏆 Leaderboard Entry</div>
+            <?php if ($child_rank > 0): ?>
+                <p style="margin-bottom:14px;"><?php echo htmlspecialchars($child_name); ?>'s Overall Rank: <strong style="color:#d97706; font-size:1.2rem;">#<?php echo $child_rank; ?></strong> of <?php echo count($leaderboard_rows); ?> students</p>
+            <?php endif; ?>
+            <div class="table-wrapper"><table>
+                <thead><tr><th>Rank</th><th>Student</th><th>Total Points</th></tr></thead>
+                <tbody>
+                <?php if (!empty($leaderboard_rows)):
+                    foreach ($leaderboard_rows as $lb):
+                        $is_child = $lb['id'] == $child_id; // Highlight the linked child's own row
+                ?>
+                    <tr <?php if ($is_child) echo 'style="background:#fef3c7; font-weight:700;"'; ?>>
+                        <td>#<?php echo $lb['rank']; ?></td>
+                        <td><?php echo htmlspecialchars($lb['full_name']); ?> <?php if ($is_child) echo '<span class="badge badge-yellow">Your Child</span>'; ?></td>
+                        <td style="color:#d97706; font-weight:700;"><?php echo $lb['total_points']; ?></td>
+                    </tr>
+                <?php endforeach; else: ?>
+                    <tr><td colspan="3" style="text-align:center; color:#64748b;">No leaderboard data available yet.</td></tr>
+                <?php endif; ?>
+                <!-- One row per student in the system, ranked by total performance points across all their batches -->
                 </tbody>
             </table></div>
         </div>
