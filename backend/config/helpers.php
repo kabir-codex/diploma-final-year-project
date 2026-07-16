@@ -7,23 +7,26 @@
 
 // Count how many rows are in a table (with an optional condition)
 // Example: count_rows($conn, 'users', "role='student'") → returns number
+
 function count_rows($conn, $table, $condition = '') {
-    $sql = "SELECT COUNT(*) AS total FROM $table";
-    if ($condition != '') {
+    $sql = "SELECT COUNT(*) AS total FROM $table";          // Base query: count all rows in the given table
+    
+    if ($condition != '') {                     // If a condition was passed in, add a WHERE clause
         $sql .= " WHERE $condition";
     }
-    $result = mysqli_query($conn, $sql);
-    $row    = mysqli_fetch_assoc($result);
-    return (int) $row['total'];
+    $result = mysqli_query($conn, $sql);               // Run the final SQL query using the shared connection $conn
+    $row    = mysqli_fetch_assoc($result);            // Pull the single result row out (it only ever has one row: the count) returns e.g. ['total' => 42
+    return (int) $row['total'];                          // Convert to a real PHP integer (it comes back from MySQL as a string) and return it
 }
 
 // Run a query and get the first row back
 // Useful when you expect just one result (e.g. finding a user by ID)
 function get_one_row($conn, $sql) {
-    $result = mysqli_query($conn, $sql);
-    if ($result && mysqli_num_rows($result) > 0) {
-        return mysqli_fetch_assoc($result);
+    $result = mysqli_query($conn, $sql);              // Run whatever SQL string was passed in
+    if ($result && mysqli_num_rows($result) > 0) {       // Check: did the query succeed AND did it return at least 1 row?
+        return mysqli_fetch_assoc($result);           // Return that first row as an associative array, e.g. ['id'=>3,'name'=>'Sam']
     }
+        // Otherwise return null so calling code can check "if user not found"
     return null; // Returns nothing if no row found
 }
 
