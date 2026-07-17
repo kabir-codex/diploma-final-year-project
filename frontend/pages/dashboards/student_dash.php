@@ -145,9 +145,9 @@ $announcements = mysqli_query($conn, "
 "); // Only shows announcements meant for everyone or specifically for students
 
 // Class links for my batches
-$class_links = mysqli_query($conn, "
+$class_sessions = mysqli_query($conn, "
     SELECT cl.*, b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name
-    FROM class_links cl
+    FROM classsession cl
     JOIN batches b ON cl.batch_id = b.id
     JOIN subjects s ON b.subject_id = s.id
     JOIN users u ON cl.lecturer_id = u.id
@@ -483,11 +483,11 @@ $materials = mysqli_query($conn, "
         <!-- CLASS LINKS -->
         <div id="classlinks" class="panel">
             <div class="panel-title">🔗 Class Links (Online Sessions)</div>
-            <?php if ($class_links && mysqli_num_rows($class_links) > 0): ?>
+            <?php if ($class_sessions && mysqli_num_rows($class_sessions) > 0): ?>
             <div class="table-wrapper"><table>
                 <thead><tr><th>Title</th><th>Subject</th><th>Batch</th><th>Lecturer</th><th>Class Date</th><th>Link</th></tr></thead>
                 <tbody>
-                <?php while ($lnk = mysqli_fetch_assoc($class_links)):
+                <?php while ($lnk = mysqli_fetch_assoc($class_sessions)):
                     $is_today   = date('Y-m-d') == $lnk['class_date'];    // Highlight today's session
                     $is_upcoming = $lnk['class_date'] >= date('Y-m-d');   // Only let students "join" a session that hasn't already happened
                 ?>

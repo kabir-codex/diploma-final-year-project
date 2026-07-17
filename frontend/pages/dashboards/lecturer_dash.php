@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_class_link'])) {
     if (empty($link_title) || empty($link_url) || empty($link_date) || $link_batch_id <= 0) {
         $link_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ All fields are required.</div>"; // Required fields check
     } else {
-        $ok = mysqli_query($conn, "INSERT INTO class_links (lecturer_id, batch_id, title, link_url, class_date) VALUES ($user_id, $link_batch_id, '$link_title', '$link_url', '$link_date')"); // Save the link
+        $ok = mysqli_query($conn, "INSERT INTO classsession (lecturer_id, batch_id, title, link_url, class_date) VALUES ($user_id, $link_batch_id, '$link_title', '$link_url', '$link_date')"); // Save the link
         $link_msg = $ok
             ? "<div style='background:#dcfce7; color:#166534; padding:10px; border-radius:7px; margin-bottom:14px;'>✅ Class link saved!</div>"
             : "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ Error: " . mysqli_error($conn) . "</div>"; // Shows the actual MySQL error if the insert failed
@@ -143,7 +143,7 @@ while ($pbs = mysqli_fetch_assoc($pt_bs_result)) {
 }
 
 // Class links uploaded by this lecturer
-$my_links = mysqli_query($conn, "SELECT cl.*, b.batch_name FROM class_links cl LEFT JOIN batches b ON cl.batch_id = b.id WHERE cl.lecturer_id = $user_id ORDER BY cl.class_date DESC");
+$my_links = mysqli_query($conn, "SELECT cl.*, b.batch_name FROM classsession cl LEFT JOIN batches b ON cl.batch_id = b.id WHERE cl.lecturer_id = $user_id ORDER BY cl.class_date DESC");
 
 // Study materials uploaded by this lecturer
 $uploader_name = mysqli_real_escape_string($conn, $full_name); // study_materials.uploaded_by stores the lecturer's name, not their id

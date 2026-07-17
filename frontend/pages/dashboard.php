@@ -37,7 +37,7 @@ $full_name = $_SESSION['full_name'];
 
 if ($role == 'lecturer' && isset($_GET['delete_link'])) {
     $del_id = (int)$_GET['delete_link'];
-    mysqli_query($conn, "DELETE FROM class_links WHERE id=$del_id AND lecturer_id=$user_id");
+    mysqli_query($conn, "DELETE FROM classsession WHERE id=$del_id AND lecturer_id=$user_id");
     header("Location: dashboard.php#classlinks");
     exit();
 }
