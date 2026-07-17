@@ -155,7 +155,7 @@ The database is named `activate_academy_db` and contains 14 tables.
 | `performance_points` | Points awarded to students by lecturers for good work |
 | `parent_student` | Links a parent account to their child's student account |
 | `study_materials` | Files uploaded by lecturers for students to download |
-| `class_links` | Online class links (Zoom, Google Meet, etc.) shared by lecturers |
+| `classsession` | Online class links (Zoom, Google Meet, etc.) shared by lecturers |
 
 ---
 

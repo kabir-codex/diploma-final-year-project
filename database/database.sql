@@ -523,9 +523,9 @@ CREATE TABLE IF NOT EXISTS `study_materials` (
 
 
 -- ============================================================
---  class_links table (merged from class_links_table.sql)
+--  classsession table (merged from class_links_table.sql)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS `class_links` (
+CREATE TABLE IF NOT EXISTS `classsession` (
   `id`           INT AUTO_INCREMENT PRIMARY KEY,
   `lecturer_id`  INT          NOT NULL,
   `batch_id`     INT          NOT NULL,
