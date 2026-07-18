@@ -51,12 +51,12 @@ $id = (int)($_GET['id'] ?? 0);
 // Only run the DELETE query if the ID is greater than 0.
 //
 // Example:
-// DELETE FROM announcements WHERE id=5
+// DELETE FROM announcement WHERE announcementID=5
 if ($id > 0) {
 
     mysqli_query(
         $conn,
-        "DELETE FROM announcements WHERE id=$id"
+        "DELETE FROM announcement WHERE announcementID=$id"
     );
 }
 
@@ -108,7 +108,7 @@ $id = 7
 
 Query executed:
 
-DELETE FROM announcements WHERE id=7;
+DELETE FROM announcement WHERE announcementID=7;
 
 ============================================================
 PROGRAM FLOW
@@ -160,25 +160,25 @@ PROGRAM FLOW
 SQL QUERY
 ============================================================
 
-DELETE FROM announcements
-WHERE id = $id;
+DELETE FROM announcement
+WHERE announcementID = $id;
 
 Purpose:
 Removes the announcement whose ID matches $id.
 
 Example:
 
-DELETE FROM announcements
-WHERE id = 3;
+DELETE FROM announcement
+WHERE announcementID = 3;
 
 This permanently removes announcement #3
-from the announcements table.
+from the announcement table.
 
 ============================================================
 POSSIBLE IMPROVEMENT
 ============================================================
 
-Current code allows ANY logged-in user to delete announcements.
+Current code allows ANY logged-in user to delete announcement.
 
 Better:
 
@@ -192,7 +192,7 @@ if (
     exit();
 }
 
-This ensures only authorized staff can delete announcements.
+This ensures only authorized staff can delete announcement.
 
 ============================================================ */
 ?>

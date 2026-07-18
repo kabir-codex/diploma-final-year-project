@@ -25,7 +25,7 @@ require '../../config/db.php';
 // ------------------------------------------------------------
 // AUTHORIZATION CHECK
 // ------------------------------------------------------------
-// Only lecturers are allowed to delete results.
+// Only lecturers are allowed to delete result.
 //
 // If not logged in OR not lecturer,
 // redirect to login page.
@@ -56,7 +56,7 @@ if ($id > 0) {
 
     mysqli_query(
         $conn,
-        "DELETE FROM results WHERE id=$id"
+        "DELETE FROM result WHERE resultID=$id"
     );
 }
 
@@ -126,7 +126,7 @@ EXAMPLE URL
 delete_result.php?id=7
 
 SQL:
-DELETE FROM results WHERE id=7;
+DELETE FROM result WHERE resultID=7;
 
 ============================================================
 PROGRAM FLOW
@@ -145,7 +145,7 @@ SECURITY IMPROVEMENTS
 ============================================================
 
 1. Verify lecturer owns result before deleting:
-   WHERE id=$id AND lecturer_id=$_SESSION['user_id']
+   WHERE resultID=$id AND lecturer_id=$_SESSION['user_id']
 
 2. Use prepared statements
 

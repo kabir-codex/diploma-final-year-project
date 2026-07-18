@@ -80,11 +80,13 @@ if (
     // --------------------------------------------------------
     // UPDATE DATABASE
     // --------------------------------------------------------
+    // Also records who changed the status (audit trail).
+    $approver_id = (int)$_SESSION['user_id'];
     mysqli_query(
         $conn,
-        "UPDATE payments
-         SET status='$new_status'
-         WHERE id=$pay_id"
+        "UPDATE payment
+         SET status='$new_status', approved_by_receptionist_id=$approver_id
+         WHERE paymentID=$pay_id"
     );
 
 
@@ -193,9 +195,9 @@ pay_id = 5
 new_status = approved
 
 SQL:
-UPDATE payments
+UPDATE payment
 SET status='approved'
-WHERE id=5;
+WHERE paymentID=5;
 
 ============================================================
 PROGRAM FLOW

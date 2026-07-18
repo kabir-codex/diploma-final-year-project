@@ -24,7 +24,7 @@ require '../../config/db.php';
 // ------------------------------------------------------------
 // AUTHORIZATION CHECK
 // ------------------------------------------------------------
-// Only the following roles can edit batches:
+// Only the following roles can edit batch:
 // - admin
 // - manager
 // - receptionist
@@ -63,7 +63,7 @@ $batch = $id
     ? mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM batches WHERE id=$id"
+            "SELECT * FROM batch WHERE batchID=$id"
         )
     )
     : null;
@@ -84,12 +84,12 @@ if (!$batch) {
 // ------------------------------------------------------------
 // LOAD SUBJECTS
 // ------------------------------------------------------------
-// Retrieve all subjects.
+// Retrieve all subject.
 // Used in Subject dropdown.
-$subjects = mysqli_query(
+$subject = mysqli_query(
     $conn,
-    "SELECT id, name
-     FROM subjects
+    "SELECT subjectID, name
+     FROM subject
      ORDER BY name"
 );
 
@@ -101,7 +101,7 @@ $subjects = mysqli_query(
 // Used in Lecturer dropdown.
 $lecturers = mysqli_query(
     $conn,
-    "SELECT id, full_name
+    "SELECT userID, full_name
      FROM users
      WHERE role='lecturer'
      ORDER BY full_name"
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // --------------------------------------------------------
     mysqli_query(
         $conn,
-        "UPDATE batches
+        "UPDATE batch
          SET
             batch_name='$name',
             subject_id=$sub_id,
@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             room='$room',
             capacity=$capacity,
             status='$status'
-         WHERE id=$id"
+         WHERE batchID=$id"
     );
 
 
@@ -263,17 +263,17 @@ PAGE CONTENT
 
                         <?php
                         while (
-                            $s = mysqli_fetch_assoc($subjects)
+                            $s = mysqli_fetch_assoc($subject)
                         ):
                         ?>
 
                             <option
-                                value="<?php echo $s['id']; ?>"
+                                value="<?php echo $s['subjectID']; ?>"
 
                                 <?php
                                 if (
                                     $batch['subject_id']
-                                    == $s['id']
+                                    == $s['subjectID']
                                 )
                                     echo 'selected';
                                 ?>
@@ -310,12 +310,12 @@ PAGE CONTENT
                         ?>
 
                             <option
-                                value="<?php echo $l['id']; ?>"
+                                value="<?php echo $l['userID']; ?>"
 
                                 <?php
                                 if (
                                     $batch['lecturer_id']
-                                    == $l['id']
+                                    == $l['userID']
                                 )
                                     echo 'selected';
                                 ?>
@@ -486,8 +486,8 @@ $id
 $batch
 - Array containing selected batch details.
 
-$subjects
-- Result set containing all subjects.
+$subject
+- Result set containing all subject.
 
 $lecturers
 - Result set containing all lecturers.
@@ -541,8 +541,8 @@ DATABASE QUERIES
 1. Get Batch
 
 SELECT *
-FROM batches
-WHERE id = $id;
+FROM batch
+WHERE batchID = $id;
 
 Purpose:
 Retrieve existing batch information.
@@ -551,18 +551,18 @@ Retrieve existing batch information.
 
 2. Get Subjects
 
-SELECT id, name
-FROM subjects
+SELECT subjectID, name
+FROM subject
 ORDER BY name;
 
 Purpose:
-Load subjects for dropdown.
+Load subject for dropdown.
 
 ----------------------------------------------------------
 
 3. Get Lecturers
 
-SELECT id, full_name
+SELECT userID, full_name
 FROM users
 WHERE role='lecturer'
 ORDER BY full_name;
@@ -574,7 +574,7 @@ Load lecturers for dropdown.
 
 4. Update Batch
 
-UPDATE batches
+UPDATE batch
 SET
     batch_name='$name',
     subject_id=$sub_id,
@@ -583,7 +583,7 @@ SET
     room='$room',
     capacity=$capacity,
     status='$status'
-WHERE id=$id;
+WHERE batchID=$id;
 
 Purpose:
 Save modified batch information.

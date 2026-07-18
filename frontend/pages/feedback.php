@@ -39,7 +39,7 @@ while ($sr = mysqli_fetch_assoc($stats)) {
 }
 
 // Get subjects for the dropdown
-$subjects = mysqli_query($conn, "SELECT name FROM subjects ORDER BY name");
+$subjects = mysqli_query($conn, "SELECT name FROM subject ORDER BY name");
 
 $page_title = "Feedback"; $css_path = "../../frontend/assets/css/style.css"; $root_path = "../../"; $active_page = "feedback";
 include '../../frontend/assets/header.php';

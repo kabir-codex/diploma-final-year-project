@@ -76,11 +76,13 @@ if (
     // --------------------------------------------------------
     // UPDATE PAYMENT STATUS
     // --------------------------------------------------------
+    // Also records who approved/rejected it (audit trail).
+    $approver_id = (int)$_SESSION['user_id'];
     mysqli_query(
         $conn,
-        "UPDATE payments
-         SET status='$status'
-         WHERE id=$id"
+        "UPDATE payment
+         SET status='$status', approved_by_receptionist_id=$approver_id
+         WHERE paymentID=$id"
     );
 }
 
@@ -182,15 +184,15 @@ approve_payment.php?id=5&action=reject
 DATABASE QUERY
 ============================================================
 
-UPDATE payments
+UPDATE payment
 SET status='approved'
-WHERE id=5;
+WHERE paymentID=5;
 
 OR
 
-UPDATE payments
+UPDATE payment
 SET status='rejected'
-WHERE id=5;
+WHERE paymentID=5;
 
 Purpose:
 Updates payment status in database.

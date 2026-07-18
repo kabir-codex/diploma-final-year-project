@@ -72,7 +72,7 @@ if ($id > 0) {
 
     mysqli_query(
         $conn,
-        "DELETE FROM enquiries WHERE id=$id"
+        "DELETE FROM enquiries WHERE enquiryID=$id"
     );
 
 }
@@ -159,14 +159,14 @@ $id = 10
 SQL Executed:
 
 DELETE FROM enquiries
-WHERE id = 10;
+WHERE enquiryID = 10;
 
 ============================================================
 DATABASE QUERY
 ============================================================
 
 DELETE FROM enquiries
-WHERE id = $id;
+WHERE enquiryID = $id;
 
 Purpose:
 Deletes the enquiry whose ID matches $id.
@@ -174,7 +174,7 @@ Deletes the enquiry whose ID matches $id.
 Example:
 
 DELETE FROM enquiries
-WHERE id = 25;
+WHERE enquiryID = 25;
 
 This permanently removes enquiry #25
 from the enquiries table.
@@ -236,9 +236,9 @@ SECURITY IMPROVEMENTS
 
 $check = mysqli_query(
     $conn,
-    "SELECT id
+    "SELECT enquiryID
      FROM enquiries
-     WHERE id=$id"
+     WHERE enquiryID=$id"
 );
 
 if(mysqli_num_rows($check) > 0){
@@ -251,7 +251,7 @@ if(mysqli_num_rows($check) > 0){
 
 $stmt = mysqli_prepare(
     $conn,
-    "DELETE FROM enquiries WHERE id=?"
+    "DELETE FROM enquiries WHERE enquiryID=?"
 );
 
 mysqli_stmt_bind_param(

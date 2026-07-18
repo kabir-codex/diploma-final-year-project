@@ -64,11 +64,9 @@ $description = mysqli_real_escape_string(
     trim($_POST['mat_description'])
 );
 
-// Uploader full name from session
-$uploader = mysqli_real_escape_string(
-    $conn,
-    $_SESSION['full_name']
-);
+// Uploader's user id from session (FK to users.userID — study_materials no
+// longer stores the lecturer's name as text)
+$uploader_id = (int) $_SESSION['user_id'];
 
 
 // ------------------------------------------------------------
@@ -203,7 +201,7 @@ if (
             subject,
             description,
             file_path,
-            uploaded_by
+            uploaded_by_lecturer_id
         )
         VALUES
         (
@@ -212,7 +210,7 @@ if (
             '$subject',
             '$description',
             '$filename',
-            '$uploader'
+            $uploader_id
         )"
     );
 
@@ -264,8 +262,8 @@ $batch_id
 $description
 - Material description
 
-$uploader
-- Name of uploader
+$uploader_id
+- Logged-in lecturer's user id (uploader)
 
 $_FILES['mat_file']
 - Uploaded file array

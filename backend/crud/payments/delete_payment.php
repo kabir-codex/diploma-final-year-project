@@ -66,7 +66,7 @@ if ($id > 0) {
     $pay = mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM payments WHERE id=$id"
+            "SELECT * FROM payment WHERE paymentID=$id"
         )
     );
 
@@ -98,7 +98,7 @@ if ($id > 0) {
         // ----------------------------------------------------
         mysqli_query(
             $conn,
-            "DELETE FROM payments WHERE id=$id"
+            "DELETE FROM payment WHERE paymentID=$id"
         );
     }
 }
@@ -209,9 +209,9 @@ delete_payment.php?id=12
 DATABASE QUERY
 ============================================================
 
-SELECT * FROM payments WHERE id=12;
+SELECT * FROM payment WHERE paymentID=12;
 
-DELETE FROM payments WHERE id=12;
+DELETE FROM payment WHERE paymentID=12;
 
 Purpose:
 Removes payment record and associated file.

@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 // Get all subjects for the interest dropdown
-$subjects = mysqli_query($conn, "SELECT name FROM subjects ORDER BY name");
+$subjects = mysqli_query($conn, "SELECT name FROM subject ORDER BY name");
 
 $page_title  = "Student Enquiry";
 $css_path    = "../../frontend/assets/css/style.css";

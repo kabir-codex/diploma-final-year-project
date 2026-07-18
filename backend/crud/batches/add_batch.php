@@ -27,7 +27,7 @@ require '../../config/db.php';
 // ------------------------------------------------------------
 // AUTHORIZATION CHECK
 // ------------------------------------------------------------
-// Only these roles can create batches:
+// Only these roles can create batch:
 // - admin
 // - manager
 // - receptionist
@@ -49,13 +49,13 @@ if (
 // ------------------------------------------------------------
 // LOAD SUBJECTS
 // ------------------------------------------------------------
-// Retrieve all subjects from database.
+// Retrieve all subject from database.
 //
 // Used to populate Subject dropdown list.
-$subjects = mysqli_query(
+$subject = mysqli_query(
     $conn,
-    "SELECT id, name, code
-     FROM subjects
+    "SELECT subjectID, name, code
+     FROM subject
      ORDER BY name"
 );
 
@@ -68,7 +68,7 @@ $subjects = mysqli_query(
 // Used to populate Lecturer dropdown list.
 $lecturers = mysqli_query(
     $conn,
-    "SELECT id, full_name
+    "SELECT userID, full_name
      FROM users
      WHERE role='lecturer'
      AND status='active'
@@ -146,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // ----------------------------------------------------
         mysqli_query(
             $conn,
-            "INSERT INTO batches
+            "INSERT INTO batch
             (
                 batch_name,
                 subject_id,
@@ -285,14 +285,14 @@ PAGE CONTENT
                         </option>
 
                         <?php
-                        // Loop through subjects
+                        // Loop through subject
                         while (
-                            $s = mysqli_fetch_assoc($subjects)
+                            $s = mysqli_fetch_assoc($subject)
                         ):
                         ?>
 
                             <option
-                                value="<?php echo $s['id']; ?>"
+                                value="<?php echo $s['subjectID']; ?>"
                             >
                                 <?php
                                 echo htmlspecialchars(
@@ -336,7 +336,7 @@ PAGE CONTENT
                         ?>
 
                             <option
-                                value="<?php echo $l['id']; ?>"
+                                value="<?php echo $l['userID']; ?>"
                             >
                                 <?php
                                 echo htmlspecialchars(
@@ -506,8 +506,8 @@ $_SESSION['user_id']
 $_SESSION['role']
 - Logged-in user's role.
 
-$subjects
-- Query result containing all subjects.
+$subject
+- Query result containing all subject.
 
 $lecturers
 - Query result containing active lecturers.
@@ -563,17 +563,17 @@ DATABASE QUERIES
 
 1. Load Subjects
 
-SELECT id, name, code
-FROM subjects
+SELECT subjectID, name, code
+FROM subject
 ORDER BY name;
 
 Purpose:
-Retrieve all available subjects.
+Retrieve all available subject.
 
 
 2. Load Lecturers
 
-SELECT id, full_name
+SELECT userID, full_name
 FROM users
 WHERE role='lecturer'
 AND status='active'
@@ -585,7 +585,7 @@ Retrieve all active lecturers.
 
 3. Insert Batch
 
-INSERT INTO batches
+INSERT INTO batch
 (
     batch_name,
     subject_id,

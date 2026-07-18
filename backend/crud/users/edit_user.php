@@ -43,7 +43,7 @@ $user = $id
     ? mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM users WHERE id=$id"
+            "SELECT * FROM users WHERE userID=$id"
         )
     )
     : null;
@@ -141,7 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             role='$role',
             status='$status'
             $pass_sql
-         WHERE id=$id"
+         WHERE userID=$id"
     );
 
     // Redirect after update
@@ -432,7 +432,7 @@ SQL QUERY
 ============================================================
 
 UPDATE users SET ...
-WHERE id=?;
+WHERE userID=?;
 
 Purpose:
 Updates user details

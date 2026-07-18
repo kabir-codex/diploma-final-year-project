@@ -13,7 +13,7 @@ $cnt_pending_enq  = count_rows($conn, 'enquiries',   "status='pending'");  // En
 $cnt_enrolled_enq = count_rows($conn, 'enquiries',   "status='enrolled'"); // Enquiries that converted into actual students
 $cnt_active_enr   = count_rows($conn, 'enrollments', "status='active'");  // Total active batch enrollments across all students
 $cnt_students     = count_rows($conn, 'users',       "role='student'");   // Total student accounts
-$cnt_pending_pay  = count_rows($conn, 'payments',    "status='pending'"); // Payments awaiting approval
+$cnt_pending_pay  = count_rows($conn, 'payment',    "status='pending'"); // Payments awaiting approval
 
 // --- LINK PARENT TO STUDENT ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['link_parent'])) {
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['link_parent'])) {
         $link_parent_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please select both a parent and a student.</div>"; // Required fields check
     } else {
         // Check if this parent-student link already exists
-        $chk = mysqli_query($conn, "SELECT id FROM parent_student WHERE parent_id=$lp_parent_id AND student_id=$lp_student_id");
+        $chk = mysqli_query($conn, "SELECT parentStudentID FROM parent_student WHERE parent_id=$lp_parent_id AND student_id=$lp_student_id");
         if (mysqli_num_rows($chk) > 0) {
             $link_parent_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ This parent is already linked to that student.</div>"; // Avoid duplicate links
         } else {
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['link_parent'])) {
 // --- UNLINK PARENT FROM STUDENT ---
 if (isset($_GET['unlink_id'])) {
     $ul_id = (int)$_GET['unlink_id'];                                              // Which parent_student link row to remove
-    if ($ul_id > 0) mysqli_query($conn, "DELETE FROM parent_student WHERE id=$ul_id"); // Remove the link (doesn't delete either account)
+    if ($ul_id > 0) mysqli_query($conn, "DELETE FROM parent_student WHERE parentStudentID=$ul_id"); // Remove the link (doesn't delete either account)
     header("Location: dashboard.php#link_parent"); // Reload the dashboard, jump back to the Link Parent panel
     exit();
 }
@@ -45,17 +45,17 @@ if (isset($_GET['unlink_id'])) {
 // --- LOAD DROPDOWNS ---
 // Active batches for dropdowns
 $batch_rows = []; // Plain PHP array version, so it can be looped multiple times in the HTML below
-$br = mysqli_query($conn, "SELECT b.id, b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name FROM batches b JOIN subjects s ON b.subject_id=s.id JOIN users u ON b.lecturer_id=u.id WHERE b.status='active' ORDER BY b.batch_name");
+$br = mysqli_query($conn, "SELECT b.batchID, b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name FROM batch b JOIN subject s ON b.subject_id=s.subjectID JOIN users u ON b.lecturer_id=u.userID WHERE b.status='active' ORDER BY b.batch_name");
 if ($br) while ($r = mysqli_fetch_assoc($br)) $batch_rows[] = $r;
 
 // Subjects for batch creation form
 $subject_rows = [];
-$sr = mysqli_query($conn, "SELECT id, name, code FROM subjects ORDER BY name");
+$sr = mysqli_query($conn, "SELECT subjectID, name, code FROM subject ORDER BY name");
 if ($sr) while ($r = mysqli_fetch_assoc($sr)) $subject_rows[] = $r;
 
 // Lecturers for batch creation form
 $lecturer_rows = [];
-$lr = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='lecturer' AND status='active' ORDER BY full_name");
+$lr = mysqli_query($conn, "SELECT userID, full_name FROM users WHERE role='lecturer' AND status='active' ORDER BY full_name");
 if ($lr) while ($r = mysqli_fetch_assoc($lr)) $lecturer_rows[] = $r;
 
 // --- REGISTER STUDENT ---
@@ -71,13 +71,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_student'])) {
         $reg_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Name, username and password are required.</div>"; // Check the raw password, not the hash, so an empty password is still caught
     } else {
         // Check if username already exists
-        $chk = mysqli_query($conn, "SELECT id FROM users WHERE username='$reg_user'");
+        $chk = mysqli_query($conn, "SELECT userID FROM users WHERE username='$reg_user'");
         if (mysqli_num_rows($chk) > 0) {
             $reg_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ Username already exists. Please choose another.</div>"; // Usernames must be unique
         } else {
-            mysqli_query($conn, "INSERT INTO users (username, password, full_name, email, phone, role, status) VALUES ('$reg_user','$reg_pass','$reg_name','$reg_email','$reg_phone','student','active')"); // Create the student account
-            $reg_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Student <strong>" . htmlspecialchars($reg_name) . "</strong> registered! Login: <strong>" . htmlspecialchars($reg_user) . "</strong></div>";
-            $cnt_students++; // Bump the on-page stat immediately, without re-querying the database
+            // Create the student account + matching subtype row together,
+            // so a new student always has a student(studentID) row too.
+            mysqli_begin_transaction($conn);
+            $ins_ok = mysqli_query($conn, "INSERT INTO users (username, password, full_name, email, phone, role, status) VALUES ('$reg_user','$reg_pass','$reg_name','$reg_email','$reg_phone','student','active')"); // Create the student account
+            if ($ins_ok) {
+                $new_student_id = mysqli_insert_id($conn);
+                $ins_ok = mysqli_query($conn, "INSERT INTO student (studentID) VALUES ($new_student_id)"); // Matching subtype row
+            }
+            if ($ins_ok) {
+                mysqli_commit($conn);
+                $reg_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Student <strong>" . htmlspecialchars($reg_name) . "</strong> registered! Login: <strong>" . htmlspecialchars($reg_user) . "</strong></div>";
+                $cnt_students++; // Bump the on-page stat immediately, without re-querying the database
+            } else {
+                mysqli_rollback($conn); // Undo the users insert too, so we never leave a student with no subtype row
+                $reg_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Could not register student. Please try again.</div>";
+            }
         }
     }
 }
@@ -96,10 +109,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_batch'])) {
     if (empty($b_name) || !$b_subject_id || !$b_lec_id) {
         $batch_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Batch name, subject and lecturer are required.</div>"; // Required fields check
     } else {
-        mysqli_query($conn, "INSERT INTO batches (batch_name, subject_id, lecturer_id, schedule, room, capacity, status, start_date) VALUES ('$b_name',$b_subject_id,$b_lec_id,'$b_schedule','$b_room',$b_capacity,'$b_status','$b_start')"); // Save the new batch
+        mysqli_query($conn, "INSERT INTO batch (batch_name, subject_id, lecturer_id, schedule, room, capacity, status, start_date) VALUES ('$b_name',$b_subject_id,$b_lec_id,'$b_schedule','$b_room',$b_capacity,'$b_status','$b_start')"); // Save the new batch
         $batch_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Batch <strong>" . htmlspecialchars($b_name) . "</strong> created!</div>";
         // Refresh batch rows so the newly created batch shows up immediately in dropdowns further down this same page load
-        $br2 = mysqli_query($conn, "SELECT b.id, b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name FROM batches b JOIN subjects s ON b.subject_id=s.id JOIN users u ON b.lecturer_id=u.id WHERE b.status='active' ORDER BY b.batch_name");
+        $br2 = mysqli_query($conn, "SELECT b.batchID, b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name FROM batch b JOIN subject s ON b.subject_id=s.subjectID JOIN users u ON b.lecturer_id=u.userID WHERE b.status='active' ORDER BY b.batch_name");
         $batch_rows = [];
         if ($br2) while ($r = mysqli_fetch_assoc($br2)) $batch_rows[] = $r;
     }
@@ -130,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['enroll_student'])) {
         $enroll_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please select both a student and a batch.</div>"; // Required fields check
     } else {
         // Check if already enrolled
-        $chk = mysqli_query($conn, "SELECT id FROM enrollments WHERE student_id=$student_id AND batch_id=$batch_id");
+        $chk = mysqli_query($conn, "SELECT enrollmentID FROM enrollments WHERE student_id=$student_id AND batch_id=$batch_id");
         if (mysqli_num_rows($chk) > 0) {
             $enroll_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ Student already enrolled in that batch.</div>"; // Avoid duplicate enrollments
         } else {
@@ -154,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['record_payment'])) {
     if (!$pay_student || !$pay_batch || $pay_amount <= 0 || empty($pay_month)) {
         $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please fill in all required payment fields.</div>"; // Required fields check
     } else {
-        $ins = mysqli_query($conn, "INSERT INTO payments (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES ($pay_student,$pay_batch,$pay_amount,'$pay_month','$rec_no','$pay_date','approved')"); // Receptionist-recorded payments are auto-approved (cash/in-person payments, unlike student-submitted ones which start pending)
+        $ins = mysqli_query($conn, "INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES ($pay_student,$pay_batch,$pay_amount,'$pay_month','$rec_no','$pay_date','approved')"); // Receptionist-recorded payments are auto-approved (cash/in-person payments, unlike student-submitted ones which start pending)
         if ($ins) {
             $new_id  = mysqli_insert_id($conn); // The id of the payment row just inserted, needed to build the print-receipt link
             $pay_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Payment recorded! Receipt: <strong>$rec_no</strong> &nbsp; <a href='print_receipt.php?id=$new_id' target='_blank' class='btn btn-small btn-primary'>🖨️ Print Receipt</a></div>";
@@ -169,15 +182,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_pay_status'])) 
     $upd_id = (int)$_POST['upd_pay_id'];                             // Which payment row to update
     $upd_st = mysqli_real_escape_string($conn, $_POST['upd_status']); // The new status picked from the dropdown
     if ($upd_id && in_array($upd_st, ['approved', 'rejected', 'pending'])) { // Whitelist check — anything else is silently ignored
-        mysqli_query($conn, "UPDATE payments SET status='$upd_st' WHERE id=$upd_id");
+        mysqli_query($conn, "UPDATE payment SET status='$upd_st' WHERE paymentID=$upd_id");
         $upd_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Payment status updated to <strong>" . ucfirst($upd_st) . "</strong>.</div>";
     }
 }
 
 // --- LOAD TABLE DATA ---
 $enq_result    = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DESC"); // Every enquiry, most recent first
-$enroll_result = mysqli_query($conn, "SELECT e.*, u.full_name AS student_name, b.batch_name, s.name AS subject_name FROM enrollments e JOIN users u ON e.student_id=u.id JOIN batches b ON e.batch_id=b.id JOIN subjects s ON b.subject_id=s.id ORDER BY e.id DESC LIMIT 20"); // Most recent 20 enrollments
-$pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b.batch_name FROM payments p JOIN users u ON p.student_id=u.id JOIN batches b ON p.batch_id=b.id ORDER BY p.id DESC LIMIT 40"); // Most recent 40 payments
+$enroll_result = mysqli_query($conn, "SELECT e.*, u.full_name AS student_name, b.batch_name, s.name AS subject_name FROM enrollments e JOIN users u ON e.student_id=u.userID JOIN batch b ON e.batch_id=b.batchID JOIN subject s ON b.subject_id=s.subjectID ORDER BY e.enrollmentID DESC LIMIT 20"); // Most recent 20 enrollments
+$pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b.batch_name FROM payment p JOIN users u ON p.student_id=u.userID JOIN batch b ON p.batch_id=b.batchID ORDER BY p.paymentID DESC LIMIT 40"); // Most recent 40 payments
 ?>
 
 <div class="dashboard-wrapper">
@@ -244,7 +257,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                             <select name="b_subject_id" required>
                                 <option value="">-- Select Subject --</option>
                                 <?php foreach ($subject_rows as $sub): ?>
-                                    <option value="<?php echo $sub['id']; ?>"><?php echo htmlspecialchars($sub['name']); ?> (<?php echo $sub['code']; ?>)</option>
+                                    <option value="<?php echo $sub['subjectID']; ?>"><?php echo htmlspecialchars($sub['name']); ?> (<?php echo $sub['code']; ?>)</option>
                                     <!-- One option per subject in the system -->
                                 <?php endforeach; ?>
                             </select>
@@ -256,7 +269,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                             <select name="b_lecturer_id" required>
                                 <option value="">-- Select Lecturer --</option>
                                 <?php foreach ($lecturer_rows as $lc): ?>
-                                    <option value="<?php echo $lc['id']; ?>"><?php echo htmlspecialchars($lc['full_name']); ?></option>
+                                    <option value="<?php echo $lc['userID']; ?>"><?php echo htmlspecialchars($lc['full_name']); ?></option>
                                     <!-- One option per active lecturer -->
                                 <?php endforeach; ?>
                             </select>
@@ -300,7 +313,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                             <label>Interested In</label>
                             <select name="enq_interest">
                                 <option value="General Enquiry">General Enquiry</option>
-                                <?php $subs = mysqli_query($conn, "SELECT name FROM subjects ORDER BY name"); // Fresh query just for this dropdown
+                                <?php $subs = mysqli_query($conn, "SELECT name FROM subject ORDER BY name"); // Fresh query just for this dropdown
                                 while ($s = mysqli_fetch_assoc($subs)): ?>
                                     <option value="<?php echo $s['name']; ?>"><?php echo $s['name']; ?></option>
                                     <!-- One option per subject in the system -->
@@ -328,8 +341,8 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                         <td style="font-size:.82rem;"><?php echo date('d M Y', strtotime($e['created_at'])); ?></td>
                         <td><span class="badge <?php echo $eb; ?>"><?php echo ucfirst($e['status']); ?></span></td>
                         <td>
-                            <a href="../../backend/crud/enquiries/edit_enquiry.php?id=<?php echo $e['id']; ?>" class="btn btn-small btn-primary">Edit</a>
-                            <a href="../../backend/crud/enquiries/delete_enquiry.php?id=<?php echo $e['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
+                            <a href="../../backend/crud/enquiries/edit_enquiry.php?id=<?php echo $e['enquiryID']; ?>" class="btn btn-small btn-primary">Edit</a>
+                            <a href="../../backend/crud/enquiries/delete_enquiry.php?id=<?php echo $e['enquiryID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
                         </td>
                     </tr>
                 <?php endwhile; else: ?>
@@ -348,9 +361,9 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                     <label>Select Student *</label>
                     <select name="enroll_student_id" required>
                         <option value="">-- Select Student --</option>
-                        <?php $stu2 = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query on every page load, so newly registered students show up immediately
+                        <?php $stu2 = mysqli_query($conn, "SELECT userID, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query on every page load, so newly registered students show up immediately
                         while ($s = mysqli_fetch_assoc($stu2)): ?>
-                            <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
+                            <option value="<?php echo $s['userID']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
                             <!-- One option per student account in the system -->
                         <?php endwhile; ?>
                     </select>
@@ -360,7 +373,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                     <select name="enroll_batch_id" required>
                         <option value="">-- Select Batch --</option>
                         <?php foreach ($batch_rows as $b): ?>
-                            <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
+                            <option value="<?php echo $b['batchID']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
                             <!-- One option per active batch -->
                         <?php endforeach; ?>
                     </select>
@@ -406,9 +419,9 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                         <label>Select Parent *</label>
                         <select name="lp_parent_id" required>
                             <option value="">-- Select Parent --</option>
-                            <?php $parents = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='parent' ORDER BY full_name"); // Fresh query on every page load, so newly added parents show up immediately
+                            <?php $parents = mysqli_query($conn, "SELECT userID, full_name FROM users WHERE role='parent' ORDER BY full_name"); // Fresh query on every page load, so newly added parents show up immediately
                             while ($p = mysqli_fetch_assoc($parents)): ?>
-                                <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['full_name']); ?></option>
+                                <option value="<?php echo $p['userID']; ?>"><?php echo htmlspecialchars($p['full_name']); ?></option>
                                 <!-- One option per parent account in the system -->
                             <?php endwhile; ?>
                         </select>
@@ -417,9 +430,9 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                         <label>Select Student (Child) *</label>
                         <select name="lp_student_id" required>
                             <option value="">-- Select Student --</option>
-                            <?php $stu_lp = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query on every page load, so newly added students show up immediately
+                            <?php $stu_lp = mysqli_query($conn, "SELECT userID, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query on every page load, so newly added students show up immediately
                             while ($s = mysqli_fetch_assoc($stu_lp)): ?>
-                                <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
+                                <option value="<?php echo $s['userID']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
                                 <!-- One option per student account in the system -->
                             <?php endwhile; ?>
                         </select>
@@ -435,12 +448,12 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                 <tbody>
                 <?php
                 $all_links = mysqli_query($conn, "
-                    SELECT ps.id,
+                    SELECT ps.parentStudentID,
                         p.full_name AS parent_name,
                         s.full_name AS student_name
                     FROM parent_student ps
-                    JOIN users p ON ps.parent_id  = p.id
-                    JOIN users s ON ps.student_id = s.id
+                    JOIN users p ON ps.parent_id  = p.userID
+                    JOIN users s ON ps.student_id = s.userID
                     ORDER BY p.full_name
                 "); // Every existing parent-student link, with names resolved via joins
                 if ($all_links && mysqli_num_rows($all_links) > 0):
@@ -449,7 +462,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                         <td><?php echo htmlspecialchars($lnk['parent_name']); ?></td>
                         <td><?php echo htmlspecialchars($lnk['student_name']); ?></td>
                         <td>
-                            <a href="dashboard.php?unlink_id=<?php echo $lnk['id']; ?>#link_parent"
+                            <a href="dashboard.php?unlink_id=<?php echo $lnk['parentStudentID']; ?>#link_parent"
                                class="btn btn-small btn-red"
                                onclick="return confirm('Remove this parent-student link?');">
                                🗑️ Unlink
@@ -476,9 +489,9 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                             <label>Student *</label>
                             <select name="pay_student_id" required>
                                 <option value="">-- Select Student --</option>
-                                <?php $stu3 = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query, separate from the other student dropdowns above
+                                <?php $stu3 = mysqli_query($conn, "SELECT userID, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query, separate from the other student dropdowns above
                                 while ($s = mysqli_fetch_assoc($stu3)): ?>
-                                    <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
+                                    <option value="<?php echo $s['userID']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
                                     <!-- One option per student account in the system -->
                                 <?php endwhile; ?>
                             </select>
@@ -488,7 +501,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                             <select name="pay_batch_id" required>
                                 <option value="">-- Select Batch --</option>
                                 <?php foreach ($batch_rows as $b): ?>
-                                    <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
+                                    <option value="<?php echo $b['batchID']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
                                     <!-- One option per active batch -->
                                 <?php endforeach; ?>
                             </select>
@@ -545,7 +558,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                         <td style="white-space:nowrap;">
                             <!-- Inline status update form -->
                             <form method="POST" action="dashboard.php#payment_history" style="display:inline-flex; gap:4px; align-items:center; margin-bottom:4px;">
-                                <input type="hidden" name="upd_pay_id" value="<?php echo $ph['id']; ?>">
+                                <input type="hidden" name="upd_pay_id" value="<?php echo $ph['paymentID']; ?>">
                                 <select name="upd_status" style="font-size:.78rem; padding:3px 6px; border-radius:5px; border:1px solid #cbd5e1;">
                                     <option value="approved" <?php echo $ph['status'] == 'approved' ? 'selected' : ''; ?>>Approved</option>
                                     <option value="pending"  <?php echo $ph['status'] == 'pending'  ? 'selected' : ''; ?>>Pending</option>
@@ -556,9 +569,9 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                             </form>
                             <br>
                             <!-- Print receipt -->
-                            <a href="print_receipt.php?id=<?php echo $ph['id']; ?>" target="_blank" class="btn btn-small btn-green" title="Print Receipt">🖨️</a>
+                            <a href="print_receipt.php?id=<?php echo $ph['paymentID']; ?>" target="_blank" class="btn btn-small btn-green" title="Print Receipt">🖨️</a>
                             <!-- Delete payment record -->
-                            <a href="../../backend/crud/payments/delete_payment.php?id=<?php echo $ph['id']; ?>"
+                            <a href="../../backend/crud/payments/delete_payment.php?id=<?php echo $ph['paymentID']; ?>"
                                class="btn btn-small btn-red"
                                style="margin-left:2px;"
                                onclick="return confirm('Delete this payment record permanently?');">

@@ -12,25 +12,37 @@
 --  The database and all tables are created automatically.
 --  You do NOT need to create the database manually first.
 --
+--  NAMING CONVENTION (applies to every table below):
+--  - Table names are singular (student, subject, batch, result, ...).
+--  - Every table's own primary key is named <table>ID (studentID,
+--    subjectID, batchID, ...) instead of a generic "id".
+--  - Foreign key columns keep their existing descriptive snake_case
+--    names (student_id, batch_id, lecturer_id, ...) — only each
+--    table's OWN primary key was renamed, not every column that
+--    happens to point at one.
+--
 --  TABLES IN THIS DATABASE:
---  1. users              – All login accounts (every role)
---  2. subjects           – Subjects/courses offered
---  3. batches            – Classes (linked to subjects + lecturers)
---  4. enrollments        – Which students are in which batch
---  5. attendance         – Daily attendance records
---  6. results            – Exam marks and grades
---  7. payments           – Fee payment records
---  8. announcements      – Notice board posts
---  9. enquiries          – Walk-in/phone enquiry records
--- 10. feedback           – Public feedback submissions
--- 11. performance_points – Points awarded to students
--- 12. parent_student     – Links each parent to their child
+--  1. users              – All login accounts (every role) — PK: userID
+--     student, lecturer, parent, receptionist, manager, admin, director
+--                         – Role subtype tables (extra per-role fields;
+--                           each PK is also a FK back to users.userID)
+--  2. subject            – Subjects/courses offered — PK: subjectID
+--     lecturer_subject   – Which subjects a lecturer is qualified to teach
+--  3. batch               – Classes (linked to subject + lecturer) — PK: batchID
+--  4. enrollments        – Which students are in which batch — PK: enrollmentID
+--  5. attendance         – Daily attendance records — PK: attendanceID
+--  6. result              – Exam marks and grades — PK: resultID
+--  7. payment             – Fee payment records — PK: paymentID
+--  8. announcement        – Notice board posts — PK: announcementID
+--  9. enquiries           – Walk-in/phone enquiry records — PK: enquiryID
+-- 10. feedback           – Public feedback submissions (deliberately login-free) — PK: feedbackID
+-- 11. performance_points – Points awarded to students — PK: performancePointID
+-- 12. parent_student     – Links each parent to their child — PK: parentStudentID
+--     study_materials    – Files uploaded by lecturers for their batches — PK: studyMaterialID
+--     class_sessions     – Online class links shared by lecturers — PK: classSessionID
 -- ============================================================
 
 -- Step 1: Create the database if it doesn't exist yet
--- This means you do NOT need to create it manually in phpMyAdmin first.
--- Just go to phpMyAdmin, click Import from the HOME screen (not inside any database),
--- select this file and click Go – everything will be created automatically.
 CREATE DATABASE IF NOT EXISTS activate_academy_db
     CHARACTER SET utf8mb4
     COLLATE utf8mb4_general_ci;
@@ -44,7 +56,7 @@ USE activate_academy_db;
 --  The 'role' column decides which dashboard they see.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
-    id         INT AUTO_INCREMENT PRIMARY KEY,  -- Unique number for each user
+    userID     INT AUTO_INCREMENT PRIMARY KEY,  -- Unique number for each user
     username   VARCHAR(60)  NOT NULL UNIQUE,    -- Login username (must be unique)
     password   VARCHAR(255) NOT NULL,           -- Hashed with password_hash() (see seed note below)
     full_name  VARCHAR(120) NOT NULL,           -- Display name
@@ -57,11 +69,71 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- ============================================================
---  TABLE 2: subjects
+--  ROLE SUBTYPE TABLES
+--  users is the supertype (login + shared fields for every role).
+--  Each of these holds ONLY the extra fields specific to that role.
+--  Its own ID column is both the PRIMARY KEY and a FOREIGN KEY to
+--  users.userID — same value as the matching users row (a strict
+--  1:1 relationship).
+--  ON DELETE CASCADE here is correct and safe: it only removes the
+--  subtype row, never the users row itself (deletes always start
+--  from users, never from these tables).
+--  'director' now HAS a subtype table (added below), even though it
+--  currently holds no extra columns — kept consistent with every
+--  other role and ready for future director-specific fields.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS student (
+    studentID     INT PRIMARY KEY,
+    date_of_birth DATE,
+    grade         VARCHAR(30),   -- Student's current grade/level
+    FOREIGN KEY (studentID) REFERENCES users(userID) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS lecturer (
+    lecturerID     INT PRIMARY KEY,
+    qualification  VARCHAR(255),
+    specialization VARCHAR(120),
+    FOREIGN KEY (lecturerID) REFERENCES users(userID) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS parent (
+    parentID   INT PRIMARY KEY,
+    contact_no VARCHAR(30),
+    FOREIGN KEY (parentID) REFERENCES users(userID) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS receptionist (
+    receptionistID INT PRIMARY KEY,
+    -- No extra columns needed beyond the id, as specified.
+    FOREIGN KEY (receptionistID) REFERENCES users(userID) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS manager (
+    managerID  INT PRIMARY KEY,
+    department VARCHAR(120),
+    FOREIGN KEY (managerID) REFERENCES users(userID) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS admin (
+    adminID      INT PRIMARY KEY,
+    access_level VARCHAR(60),
+    FOREIGN KEY (adminID) REFERENCES users(userID) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS director (
+    directorID INT PRIMARY KEY,
+    -- No extra columns yet — director is currently a view-only role.
+    -- Add director-specific fields here later if the role grows one.
+    FOREIGN KEY (directorID) REFERENCES users(userID) ON DELETE CASCADE
+);
+
+-- ============================================================
+--  TABLE 2: subject
 --  Subjects/courses offered at the institute.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS subjects (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS subject (
+    subjectID   INT AUTO_INCREMENT PRIMARY KEY,
     code        VARCHAR(30)  NOT NULL UNIQUE,   -- e.g. MATH-101
     name        VARCHAR(120) NOT NULL,          -- e.g. Mathematics
     level       VARCHAR(50),                    -- e.g. O/L, A/L
@@ -71,24 +143,56 @@ CREATE TABLE IF NOT EXISTS subjects (
 );
 
 -- ============================================================
---  TABLE 3: batches
+--  TABLE: lecturer_subject
+--  Tracks which subjects a lecturer is QUALIFIED to teach,
+--  independent of which batch they are currently assigned to.
+--  Purely additive — not wired into any page yet.
+--  (No generic "id" column here — its primary key is already the
+--  composite (lecturer_id, subject_id), so nothing to rename.)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS lecturer_subject (
+    lecturer_id INT NOT NULL,
+    subject_id  INT NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (lecturer_id, subject_id),
+    FOREIGN KEY (lecturer_id) REFERENCES users(userID)   ON DELETE CASCADE,
+    FOREIGN KEY (subject_id)  REFERENCES subject(subjectID) ON DELETE CASCADE
+);
+
+-- Seed it from the pairs already implied by the batch table below,
+-- so it isn't empty. Safe to re-run: duplicate pairs are just ignored.
+-- NOTE: this INSERT...SELECT must run AFTER the batch table exists
+-- and has data — on a fresh import that's fine since batch is
+-- created and seeded further down this same file. If you are running
+-- this against your EXISTING live database, run it as a separate
+-- statement any time after both tables exist:
+--   INSERT IGNORE INTO lecturer_subject (lecturer_id, subject_id)
+--   SELECT DISTINCT lecturer_id, subject_id FROM batch;
+
+-- ============================================================
+--  TABLE 3: batch
 --  A batch is a specific class run by a lecturer for a subject.
 --  e.g. "Math Batch A – Saturdays 9AM" taught by Mr. Silva
 -- ============================================================
-CREATE TABLE IF NOT EXISTS batches (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS batch (
+    batchID     INT AUTO_INCREMENT PRIMARY KEY,
     batch_name  VARCHAR(120) NOT NULL,
-    subject_id  INT NOT NULL,              -- Links to subjects.id
-    lecturer_id INT NOT NULL,              -- Links to users.id (lecturer)
+    subject_id  INT NOT NULL,              -- Links to subject.subjectID
+    lecturer_id INT NOT NULL,              -- Links to lecturer.lecturerID
     schedule    VARCHAR(120),              -- e.g. "Sat 9:00 AM – 12:00 PM"
     room        VARCHAR(60),               -- e.g. "Room 101"
     capacity    INT DEFAULT 30,
     status      ENUM('upcoming','active','completed') DEFAULT 'active',
     start_date  DATE,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    -- Foreign keys ensure referenced rows exist
-    FOREIGN KEY (subject_id)  REFERENCES subjects(id) ON DELETE CASCADE,
-    FOREIGN KEY (lecturer_id) REFERENCES users(id)    ON DELETE CASCADE
+    -- Foreign keys ensure referenced rows exist.
+    -- ON DELETE RESTRICT (not CASCADE): deleting a lecturer or subject that
+    -- still has batches assigned must be BLOCKED, not silently cascade into
+    -- wiping out every batch/enrollment/attendance/result/payment/material/
+    -- class-session tied to it. Deactivate the user (status='inactive')
+    -- or reassign/remove their batches first instead.
+    CONSTRAINT fk_batch_subject_id  FOREIGN KEY (subject_id)  REFERENCES subject(subjectID)   ON DELETE RESTRICT,
+    CONSTRAINT fk_batch_lecturer_id FOREIGN KEY (lecturer_id) REFERENCES lecturer(lecturerID) ON DELETE RESTRICT
 );
 
 -- ============================================================
@@ -96,14 +200,16 @@ CREATE TABLE IF NOT EXISTS batches (
 --  Records which students are enrolled in which batches.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS enrollments (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
-    student_id   INT NOT NULL,              -- Links to users.id (student)
-    batch_id     INT NOT NULL,              -- Links to batches.id
+    enrollmentID INT AUTO_INCREMENT PRIMARY KEY,
+    student_id   INT NOT NULL,              -- Links to student.studentID
+    batch_id     INT NOT NULL,              -- Links to batch.batchID
     enroll_date  DATE,
     status       ENUM('active','dropped','completed') DEFAULT 'active',
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id)    ON DELETE CASCADE,
-    FOREIGN KEY (batch_id)   REFERENCES batches(id)  ON DELETE CASCADE
+    FOREIGN KEY (student_id) REFERENCES student(studentID) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id)   REFERENCES batch(batchID)     ON DELETE CASCADE,
+    -- Prevents the same student being enrolled twice in the same batch.
+    UNIQUE KEY uniq_student_batch (student_id, batch_id)
 );
 
 -- ============================================================
@@ -111,23 +217,26 @@ CREATE TABLE IF NOT EXISTS enrollments (
 --  Daily attendance record: one row per student per class day.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS attendance (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
+    attendanceID INT AUTO_INCREMENT PRIMARY KEY,
     student_id   INT  NOT NULL,
     batch_id     INT  NOT NULL,
     attend_date  DATE NOT NULL,
     status       ENUM('present','absent','late') DEFAULT 'present',
-    marked_by    INT,               -- Which lecturer marked it (users.id)
+    marked_by    INT,               -- Which lecturer marked it (users.userID) — no FK exists on this column; see note below the table
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id)    ON DELETE CASCADE,
-    FOREIGN KEY (batch_id)   REFERENCES batches(id)  ON DELETE CASCADE
+    FOREIGN KEY (student_id) REFERENCES student(studentID) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id)   REFERENCES batch(batchID)     ON DELETE CASCADE
 );
+-- NOTE: marked_by has no foreign key at all in the current schema (not
+-- even to users). Left as-is — out of scope for this renaming task,
+-- flagged as a possible future enhancement.
 
 -- ============================================================
---  TABLE 6: results
+--  TABLE 6: result
 --  Exam marks uploaded by lecturers for their students.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS results (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS result (
+    resultID     INT AUTO_INCREMENT PRIMARY KEY,
     student_id   INT         NOT NULL,
     batch_id     INT         NOT NULL,
     exam_name    VARCHAR(120) NOT NULL,    -- e.g. "Mid-Term Test 1"
@@ -136,19 +245,21 @@ CREATE TABLE IF NOT EXISTS results (
     total_marks  INT DEFAULT 100,
     grade        VARCHAR(5),              -- e.g. A+, A, A-, B+, B, B-, C+, C, C-, D+, D, E
     comments     TEXT,
-    uploaded_by  INT,                     -- Lecturer who uploaded (users.id)
+    uploaded_by  INT,                     -- Lecturer who uploaded (users.userID) — no FK exists on this column; see note below the table
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id)    ON DELETE CASCADE,
-    FOREIGN KEY (batch_id)   REFERENCES batches(id)  ON DELETE CASCADE
+    FOREIGN KEY (student_id) REFERENCES student(studentID) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id)   REFERENCES batch(batchID)     ON DELETE CASCADE
 );
+-- NOTE: uploaded_by has no foreign key at all in the current schema.
+-- Left as-is — out of scope for this renaming task.
 
 -- ============================================================
---  TABLE 7: payments
+--  TABLE 7: payment
 --  Monthly fee payment records submitted by students.
 --  Admin must approve or reject each payment.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS payments (
-    id           INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS payment (
+    paymentID    INT AUTO_INCREMENT PRIMARY KEY,
     student_id   INT NOT NULL,
     batch_id     INT NOT NULL,
     amount       DECIMAL(10,2) NOT NULL,
@@ -157,24 +268,32 @@ CREATE TABLE IF NOT EXISTS payments (
     receipt_file VARCHAR(255),             -- Uploaded file name stored here
     pay_date     DATE,
     status       ENUM('pending','approved','rejected') DEFAULT 'pending',
+    -- Which staff member (admin/manager/receptionist) approved or rejected
+    -- this payment. NULL while status is still 'pending'.
+    approved_by_receptionist_id INT NULL,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id)    ON DELETE CASCADE,
-    FOREIGN KEY (batch_id)   REFERENCES batches(id)  ON DELETE CASCADE
+    FOREIGN KEY (student_id) REFERENCES student(studentID) ON DELETE CASCADE,
+    FOREIGN KEY (batch_id)   REFERENCES batch(batchID)     ON DELETE CASCADE,
+    -- NOT pointed at receptionist(receptionistID): admin and manager accounts
+    -- can also approve/reject payments (see approve_payment.php /
+    -- update_payment.php), so this column can legitimately hold an admin,
+    -- manager, or receptionist id. Left pointing at users(userID) on purpose.
+    FOREIGN KEY (approved_by_receptionist_id) REFERENCES users(userID) ON DELETE SET NULL
 );
 
 -- ============================================================
---  TABLE 8: announcements
+--  TABLE 8: announcement
 --  Posts made by admin visible on dashboards and home page.
 -- ============================================================
-CREATE TABLE IF NOT EXISTS announcements (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS announcement (
+    announcementID INT AUTO_INCREMENT PRIMARY KEY,
     title      VARCHAR(200) NOT NULL,
     message    TEXT         NOT NULL,
     audience   ENUM('all','students','parents','staff') DEFAULT 'all',
     post_date  DATE,
-    posted_by  INT,                      -- User who wrote it (users.id)
+    posted_by  INT,                      -- User who wrote it (users.userID)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (posted_by) REFERENCES users(id) ON DELETE SET NULL
+    FOREIGN KEY (posted_by) REFERENCES users(userID) ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -182,7 +301,7 @@ CREATE TABLE IF NOT EXISTS announcements (
 --  Walk-in or phone enquiry records logged by receptionists.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS enquiries (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
+    enquiryID  INT AUTO_INCREMENT PRIMARY KEY,
     name       VARCHAR(120) NOT NULL,
     phone      VARCHAR(30)  NOT NULL,
     email      VARCHAR(120),
@@ -195,9 +314,16 @@ CREATE TABLE IF NOT EXISTS enquiries (
 -- ============================================================
 --  TABLE 10: feedback
 --  Feedback submitted by students or parents on the website.
+--
+--  DELIBERATE DESIGN CHOICE (not an oversight): name, role, and email
+--  are kept as free text with NO foreign key to users. This is a
+--  public feedback form on the website that intentionally does not
+--  require a login — visitors who are not registered users (e.g.
+--  prospective parents) can still leave feedback. Some seed rows have
+--  a blank email for the same reason. Do not add a users FK here.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS feedback (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
+    feedbackID INT AUTO_INCREMENT PRIMARY KEY,
     name       VARCHAR(120) NOT NULL,
     role       VARCHAR(50),             -- e.g. Student, Parent
     subject    VARCHAR(120),
@@ -213,7 +339,7 @@ CREATE TABLE IF NOT EXISTS feedback (
 --  Points awarded to students by lecturers for good work.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS performance_points (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
+    performancePointID INT AUTO_INCREMENT PRIMARY KEY,
     student_id  INT NOT NULL,
     awarded_by  INT NOT NULL,           -- Lecturer who gave the points
     batch_id    INT,
@@ -221,8 +347,8 @@ CREATE TABLE IF NOT EXISTS performance_points (
     reason      VARCHAR(255),
     award_date  DATE,
     created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (awarded_by) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (student_id) REFERENCES student(studentID)   ON DELETE CASCADE,
+    FOREIGN KEY (awarded_by) REFERENCES lecturer(lecturerID) ON DELETE CASCADE
 );
 
 -- ============================================================
@@ -231,12 +357,12 @@ CREATE TABLE IF NOT EXISTS performance_points (
 --  One parent can have multiple children (one row per child).
 -- ============================================================
 CREATE TABLE IF NOT EXISTS parent_student (
-    id         INT AUTO_INCREMENT PRIMARY KEY,
-    parent_id  INT NOT NULL,            -- Links to users.id (role=parent)
-    student_id INT NOT NULL,            -- Links to users.id (role=student)
+    parentStudentID INT AUTO_INCREMENT PRIMARY KEY,
+    parent_id  INT NOT NULL,            -- Links to parent.parentID
+    student_id INT NOT NULL,            -- Links to student.studentID
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (parent_id)  REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (parent_id)  REFERENCES parent(parentID)   ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES student(studentID) ON DELETE CASCADE
 );
 
 
@@ -275,9 +401,20 @@ INSERT INTO users (username, password, full_name, email, phone, role, status) VA
 ('parent1',      'parent123',   'Mr. Mohamed Farhan',   'parent1@email.lk',           '0771000013', 'parent',       'active'),
 ('parent2',      'parent456',   'Mrs. Rathnayake',      'parent2@email.lk',           '0771000014', 'parent',       'active');
 
+-- ---- SUBTYPE BACKFILL ----
+-- Every existing user gets a matching subtype row. Role-specific
+-- columns are NULL for now — that's expected; fill them in later.
+INSERT INTO student      (studentID)      SELECT userID FROM users WHERE role = 'student';
+INSERT INTO lecturer     (lecturerID)     SELECT userID FROM users WHERE role = 'lecturer';
+INSERT INTO parent       (parentID)       SELECT userID FROM users WHERE role = 'parent';
+INSERT INTO receptionist (receptionistID) SELECT userID FROM users WHERE role = 'receptionist';
+INSERT INTO manager      (managerID)      SELECT userID FROM users WHERE role = 'manager';
+INSERT INTO admin        (adminID)        SELECT userID FROM users WHERE role = 'admin';
+INSERT INTO director     (directorID)     SELECT userID FROM users WHERE role = 'director';
+
 
 -- ---- SUBJECTS ----
-INSERT INTO subjects (code, name, level, fee, description) VALUES
+INSERT INTO subject (code, name, level, fee, description) VALUES
 ('MATH-OL', 'Mathematics',        'O/L',         2500.00, 'Comprehensive O/L Mathematics covering all modules.'),
 ('ENG-OL',  'English Language',   'O/L',         2200.00, 'Grammar, comprehension and essay writing for O/L students.'),
 ('SCI-OL',  'Science',            'O/L',         2500.00, 'Physics, Chemistry and Biology combined for O/L.'),
@@ -289,7 +426,7 @@ INSERT INTO subjects (code, name, level, fee, description) VALUES
 -- ---- BATCHES ----
 -- (subject_id and lecturer_id must match the IDs inserted above)
 -- subjects inserted as IDs 1–6, lecturers as IDs 4 (math), 5 (eng), 6 (sci)
-INSERT INTO batches (batch_name, subject_id, lecturer_id, schedule, room, capacity, status, start_date) VALUES
+INSERT INTO batch (batch_name, subject_id, lecturer_id, schedule, room, capacity, status, start_date) VALUES
 ('Math O/L Batch A',   1, 4, 'Sat & Sun  9:00 AM – 12:00 PM', 'Room 101', 25, 'active',    '2025-01-06'),
 ('Math O/L Batch B',   1, 4, 'Sat & Sun  1:00 PM –  4:00 PM', 'Room 101', 25, 'active',    '2025-01-06'),
 ('English O/L Batch',  2, 5, 'Sat        9:00 AM – 12:00 PM', 'Room 102', 20, 'active',    '2025-01-11'),
@@ -297,6 +434,10 @@ INSERT INTO batches (batch_name, subject_id, lecturer_id, schedule, room, capaci
 ('Combined Maths A/L', 4, 4, 'Fri        4:00 PM –  7:00 PM', 'Room 201', 18, 'active',    '2025-02-07'),
 ('Physics A/L Batch',  5, 6, 'Fri        4:00 PM –  7:00 PM', 'Room 202', 18, 'upcoming',  '2025-06-06'),
 ('ICT Foundation',     6, 5, 'Wed        4:00 PM –  6:00 PM', 'Lab 01',   20, 'active',    '2025-01-15');
+
+-- ---- LECTURER_SUBJECT (seeded from the batches above, so it isn't empty) ----
+INSERT IGNORE INTO lecturer_subject (lecturer_id, subject_id)
+SELECT DISTINCT lecturer_id, subject_id FROM batch;
 
 
 -- ---- ENROLLMENTS ----
@@ -369,7 +510,7 @@ INSERT INTO attendance (student_id, batch_id, attend_date, status, marked_by) VA
 
 -- ---- RESULTS ----
 -- uploaded_by: 4=Math, 5=Eng/ICT, 6=Science
-INSERT INTO results (student_id, batch_id, exam_name, exam_date, marks, total_marks, grade, comments, uploaded_by) VALUES
+INSERT INTO result (student_id, batch_id, exam_name, exam_date, marks, total_marks, grade, comments, uploaded_by) VALUES
 -- Kabir – Math A exams
 (8, 1, 'Monthly Test 1', '2025-02-01', 78, 100, 'A', 'Good effort!', 4),
 (8, 1, 'Monthly Test 2', '2025-03-01', 85, 100, 'A+', 'Excellent work!', 4),
@@ -403,7 +544,7 @@ INSERT INTO results (student_id, batch_id, exam_name, exam_date, marks, total_ma
 
 -- ---- PAYMENTS ----
 -- student IDs: 8=Kabir, 9=Ishfaq, 10=Amaya, 11=Nuwan, 12=Hasini
-INSERT INTO payments (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES
+INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES
 -- Kabir – Math A (batch 1)
 (8, 1,  2500.00, '2025-01', 'RCP-001', '2025-01-08', 'approved'),
 (8, 1,  2500.00, '2025-02', 'RCP-005', '2025-02-07', 'approved'),
@@ -435,7 +576,7 @@ INSERT INTO payments (student_id, batch_id, amount, pay_month, receipt_no, pay_d
 
 -- ---- ANNOUNCEMENTS ----
 -- posted_by ID 1 = admin
-INSERT INTO announcements (title, message, audience, post_date, posted_by) VALUES
+INSERT INTO announcement (title, message, audience, post_date, posted_by) VALUES
 ('Welcome to 2025 Academic Year!',
  'Dear students and parents, welcome to the 2025 academic year at Activate Academy. We look forward to another year of academic excellence and personal growth.',
  'all', '2025-01-03', 1),
@@ -507,32 +648,35 @@ INSERT INTO parent_student (parent_id, student_id) VALUES
 -- Study Materials Table (added for Activate Academy)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS `study_materials` (
-  `id`          INT AUTO_INCREMENT PRIMARY KEY,
-  `batch_id`    INT           NOT NULL,
-  `title`       VARCHAR(255)  NOT NULL,
-  `subject`     VARCHAR(255)  NOT NULL,
-  `description` TEXT,
-  `file_path`   VARCHAR(500)  NOT NULL,
-  `uploaded_by` VARCHAR(255)  NOT NULL,
-  `created_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`batch_id`) REFERENCES `batches`(`id`) ON DELETE CASCADE
+  `studyMaterialID`         INT AUTO_INCREMENT PRIMARY KEY,
+  `batch_id`                INT           NOT NULL,
+  `title`                   VARCHAR(255)  NOT NULL,
+  `subject`                 VARCHAR(255)  NOT NULL,
+  `description`             TEXT,
+  `file_path`               VARCHAR(500)  NOT NULL,
+  -- Lecturer who uploaded this material (FK, replaces the old free-text
+  -- `uploaded_by` name column so renaming a user no longer orphans this data).
+  `uploaded_by_lecturer_id` INT           NOT NULL,
+  `created_at`              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`batch_id`) REFERENCES `batch`(`batchID`) ON DELETE CASCADE,
+  FOREIGN KEY (`uploaded_by_lecturer_id`) REFERENCES `users`(`userID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- If you already created study_materials without batch_id, run this instead:
--- ALTER TABLE `study_materials` ADD COLUMN `batch_id` INT NOT NULL DEFAULT 0 AFTER `id`;
+-- ALTER TABLE `study_materials` ADD COLUMN `batch_id` INT NOT NULL DEFAULT 0 AFTER `studyMaterialID`;
 
 
 -- ============================================================
---  classsession table (merged from class_links_table.sql)
+--  class_sessions table (merged from class_links_table.sql)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS `classsession` (
-  `id`           INT AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS `class_sessions` (
+  `classSessionID` INT AUTO_INCREMENT PRIMARY KEY,
   `lecturer_id`  INT          NOT NULL,
   `batch_id`     INT          NOT NULL,
   `title`        VARCHAR(255) NOT NULL,
   `link_url`     TEXT         NOT NULL,
   `class_date`   DATE         NOT NULL,
   `created_at`   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`lecturer_id`) REFERENCES `users`(`id`)   ON DELETE CASCADE,
-  FOREIGN KEY (`batch_id`)    REFERENCES `batches`(`id`) ON DELETE CASCADE
+  FOREIGN KEY (`lecturer_id`) REFERENCES `lecturer`(`lecturerID`) ON DELETE CASCADE,
+  FOREIGN KEY (`batch_id`)    REFERENCES `batch`(`batchID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

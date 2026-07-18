@@ -19,7 +19,7 @@ require '../../config/db.php';
 // -----------------------------------------------------------------
 // Verify that:
 // 1. The user is logged in (user_id exists in session)
-// 2. The user role is allowed to post announcements
+// 2. The user role is allowed to post announcement
 //
 // Allowed roles:
 // - admin
@@ -85,10 +85,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // ---------------------------------------------------------
         // DATABASE INSERT
         // ---------------------------------------------------------
-        // Insert announcement into announcements table.
+        // Insert announcement into announcement table.
         mysqli_query(
             $conn,
-            "INSERT INTO announcements
+            "INSERT INTO announcement
             (
                 title,
                 message,
@@ -376,7 +376,7 @@ PROGRAM FLOW
 DATABASE QUERY
 ============================================================
 
-INSERT INTO announcements
+INSERT INTO announcement
 (
     title,
     message,
@@ -394,7 +394,7 @@ VALUES
 );
 
 Purpose:
-Creates a new announcement record in the announcements table.
+Creates a new announcement record in the announcement table.
 
 ============================================================
 -->

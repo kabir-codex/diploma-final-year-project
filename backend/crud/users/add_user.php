@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // ----------------------------------------------------
         $chk = mysqli_query(
             $conn,
-            "SELECT id FROM users WHERE username='$username'"
+            "SELECT userID FROM users WHERE username='$username'"
         );
 
         if (mysqli_num_rows($chk) > 0) {
@@ -129,9 +129,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } else {
 
             // ------------------------------------------------
-            // INSERT NEW USER
+            // INSERT NEW USER + MATCHING SUBTYPE ROW
             // ------------------------------------------------
-            mysqli_query(
+            // Every role has its own subtype table (student, lecturer,
+            // parent, receptionist, manager, admin, director) holding
+            // extra fields for that role. Both inserts must succeed
+            // together, so we wrap them in a transaction: if the
+            // subtype insert fails, the users insert is undone too,
+            // instead of leaving a user with no matching row.
+            mysqli_begin_transaction($conn);
+
+            $insert_ok = mysqli_query(
                 $conn,
                 "INSERT INTO users
                 (
@@ -155,12 +163,56 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 )"
             );
 
-            // Redirect on success
-            header(
-                "Location: ../../../frontend/pages/dashboard.php?msg=User+added+successfully"
-            );
+            if ($insert_ok) {
 
-            exit();
+                // The new user's id, needed to create the matching
+                // subtype row (subtype's own ID = users.userID, same value).
+                $new_user_id = mysqli_insert_id($conn);
+
+                // Map each role to its subtype table AND that table's
+                // own primary key column name (each subtype table names
+                // its primary key differently, e.g. studentID, lecturerID).
+                $subtype_tables = [
+                    'student'      => ['table' => 'student',      'pk' => 'studentID'],
+                    'lecturer'     => ['table' => 'lecturer',     'pk' => 'lecturerID'],
+                    'parent'       => ['table' => 'parent',       'pk' => 'parentID'],
+                    'receptionist' => ['table' => 'receptionist', 'pk' => 'receptionistID'],
+                    'manager'      => ['table' => 'manager',      'pk' => 'managerID'],
+                    'admin'        => ['table' => 'admin',        'pk' => 'adminID'],
+                    'director'     => ['table' => 'director',     'pk' => 'directorID'],
+                ];
+
+                if (isset($subtype_tables[$role])) {
+
+                    $subtype_table = $subtype_tables[$role]['table'];
+                    $subtype_pk    = $subtype_tables[$role]['pk'];
+
+                    $insert_ok = mysqli_query(
+                        $conn,
+                        "INSERT INTO $subtype_table ($subtype_pk) VALUES ($new_user_id)"
+                    );
+                }
+            }
+
+            if ($insert_ok) {
+                mysqli_commit($conn);
+
+                // Redirect on success
+                header(
+                    "Location: ../../../frontend/pages/dashboard.php?msg=User+added+successfully"
+                );
+
+                exit();
+
+            } else {
+                // Something failed (e.g. the subtype insert) — undo
+                // the users insert too, so we never end up with a
+                // user that has no matching subtype row.
+                mysqli_rollback($conn);
+
+                $error =
+                    "Could not create user. Please try again.";
+            }
         }
     }
 }

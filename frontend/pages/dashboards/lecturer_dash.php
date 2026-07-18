@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_announcement'])) 
     if (empty($ann_title) || empty($ann_message)) {
         $ann_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ Title and message are required.</div>"; // Required fields check
     } else {
-        mysqli_query($conn, "INSERT INTO announcements (title, message, audience, post_date, posted_by) VALUES ('$ann_title', '$ann_message', '$ann_audience', '$ann_date', $user_id)"); // Save the announcement
+        mysqli_query($conn, "INSERT INTO announcement (title, message, audience, post_date, posted_by) VALUES ('$ann_title', '$ann_message', '$ann_audience', '$ann_date', $user_id)"); // Save the announcement
         $ann_msg = "<div style='background:#dcfce7; color:#166534; padding:10px; border-radius:7px; margin-bottom:14px;'>✅ Announcement posted!</div>";
     }
 }
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_class_link'])) {
     if (empty($link_title) || empty($link_url) || empty($link_date) || $link_batch_id <= 0) {
         $link_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ All fields are required.</div>"; // Required fields check
     } else {
-        $ok = mysqli_query($conn, "INSERT INTO classsession (lecturer_id, batch_id, title, link_url, class_date) VALUES ($user_id, $link_batch_id, '$link_title', '$link_url', '$link_date')"); // Save the link
+        $ok = mysqli_query($conn, "INSERT INTO class_sessions (lecturer_id, batch_id, title, link_url, class_date) VALUES ($user_id, $link_batch_id, '$link_title', '$link_url', '$link_date')"); // Save the link
         $link_msg = $ok
             ? "<div style='background:#dcfce7; color:#166534; padding:10px; border-radius:7px; margin-bottom:14px;'>✅ Class link saved!</div>"
             : "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ Error: " . mysqli_error($conn) . "</div>"; // Shows the actual MySQL error if the insert failed
@@ -58,10 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mark_attendance'])) {
         $sid    = (int)$sid;                                            // The student this status belongs to
         $status = mysqli_real_escape_string($conn, $status);            // present / absent / late
         // Check if attendance for this student/batch/date already exists
-        $chk = mysqli_query($conn, "SELECT id FROM attendance WHERE student_id=$sid AND batch_id=$att_batch AND attend_date='$att_date'");
+        $chk = mysqli_query($conn, "SELECT attendanceID FROM attendance WHERE student_id=$sid AND batch_id=$att_batch AND attend_date='$att_date'");
         if (mysqli_num_rows($chk) > 0) {
             $existing = mysqli_fetch_assoc($chk);                                                   // Already marked for this date — update it instead of duplicating
-            mysqli_query($conn, "UPDATE attendance SET status='$status' WHERE id=" . $existing['id']);
+            mysqli_query($conn, "UPDATE attendance SET status='$status' WHERE attendanceID=" . $existing['attendanceID']);
         } else {
             mysqli_query($conn, "INSERT INTO attendance (student_id, batch_id, attend_date, status, marked_by) VALUES ($sid, $att_batch, '$att_date', '$status', $user_id)"); // First time marking this student for this date
         }
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_result'])) {
     $total_marks = 100; // Total marks is fixed at 100 for all results
     $grade       = mysqli_real_escape_string($conn, calc_grade($marks));       // Server-side grade calculation — never trusts a client-submitted grade
     $comments    = mysqli_real_escape_string($conn, $_POST['comments']);       // Optional lecturer note
-    $ok = mysqli_query($conn, "INSERT INTO results (student_id, batch_id, exam_name, exam_date, marks, total_marks, grade, comments, uploaded_by) VALUES ($res_student, $res_batch, '$exam_name', '$exam_date', $marks, $total_marks, '$grade', '$comments', $user_id)");
+    $ok = mysqli_query($conn, "INSERT INTO result (student_id, batch_id, exam_name, exam_date, marks, total_marks, grade, comments, uploaded_by) VALUES ($res_student, $res_batch, '$exam_name', '$exam_date', $marks, $total_marks, '$grade', '$comments', $user_id)");
     $res_msg = $ok
         ? "<div style='background:#dcfce7; color:#166534; padding:10px; border-radius:7px; margin-bottom:14px;'>✅ Result uploaded!</div>"
         : "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ Error: " . mysqli_error($conn) . "</div>";
@@ -105,52 +105,52 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['award_points'])) {
 // --- LOAD DATA ---
 
 // This lecturer's batches
-$batches_result = mysqli_query($conn, "SELECT b.*, s.name AS subject_name FROM batches b JOIN subjects s ON b.subject_id = s.id WHERE b.lecturer_id = $user_id ORDER BY b.batch_name");
+$batches_result = mysqli_query($conn, "SELECT b.*, s.name AS subject_name FROM batch b JOIN subject s ON b.subject_id = s.subjectID WHERE b.lecturer_id = $user_id ORDER BY b.batch_name");
 $batch_rows = [];                                                        // Plain PHP array version of the result above, so it can be looped multiple times in the HTML below
 while ($br = mysqli_fetch_assoc($batches_result)) $batch_rows[] = $br;
 
 // Which batch is selected for attendance
-$selected_batch_id = !empty($batch_rows) ? $batch_rows[0]['id'] : 0;     // Defaults to the lecturer's first batch
+$selected_batch_id = !empty($batch_rows) ? $batch_rows[0]['batchID'] : 0;     // Defaults to the lecturer's first batch
 if (isset($_POST['att_batch_id'])) $selected_batch_id = (int)$_POST['att_batch_id']; // Unless they just submitted the attendance form for a specific batch
 
 // Students in the selected batch
-$students_result = mysqli_query($conn, "SELECT u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id WHERE e.batch_id = $selected_batch_id AND e.status = 'active' ORDER BY u.full_name");
+$students_result = mysqli_query($conn, "SELECT u.userID, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.userID WHERE e.batch_id = $selected_batch_id AND e.status = 'active' ORDER BY u.full_name");
 
 // Attendance records this lecturer has marked, across all their batches (most recent first)
 $my_attendance_records = mysqli_query($conn, "
-    SELECT a.id, a.attend_date, a.status, b.id AS batch_id, b.batch_name, u.full_name AS student_name
+    SELECT a.attendanceID, a.attend_date, a.status, b.batchID AS batch_id, b.batch_name, u.full_name AS student_name
     FROM attendance a
-    JOIN batches b ON a.batch_id = b.id
-    JOIN users u ON a.student_id = u.id
+    JOIN batch b ON a.batch_id = b.batchID
+    JOIN users u ON a.student_id = u.userID
     WHERE a.marked_by = $user_id
     ORDER BY a.attend_date DESC, b.batch_name, u.full_name
 "); // Used to build the "My Saved Attendance Records" table further down
 
 // All students in this lecturer's batches (for dropdowns)
-$all_students = mysqli_query($conn, "SELECT DISTINCT u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id JOIN batches b ON e.batch_id = b.id WHERE b.lecturer_id = $user_id ORDER BY u.full_name");
+$all_students = mysqli_query($conn, "SELECT DISTINCT u.userID, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.userID JOIN batch b ON e.batch_id = b.batchID WHERE b.lecturer_id = $user_id ORDER BY u.full_name");
 
 // Recently uploaded results
-$my_results = mysqli_query($conn, "SELECT r.*, u.full_name AS student_name, b.batch_name FROM results r JOIN users u ON r.student_id = u.id JOIN batches b ON r.batch_id = b.id WHERE r.uploaded_by = $user_id ORDER BY r.id DESC LIMIT 10");
+$my_results = mysqli_query($conn, "SELECT r.*, u.full_name AS student_name, b.batch_name FROM result r JOIN users u ON r.student_id = u.userID JOIN batch b ON r.batch_id = b.batchID WHERE r.uploaded_by = $user_id ORDER BY r.resultID DESC LIMIT 10");
 
 // Recently awarded points
-$my_points = mysqli_query($conn, "SELECT pp.*, u.full_name AS student_name, b.batch_name FROM performance_points pp JOIN users u ON pp.student_id = u.id LEFT JOIN batches b ON pp.batch_id = b.id WHERE pp.awarded_by = $user_id ORDER BY pp.id DESC LIMIT 10");
+$my_points = mysqli_query($conn, "SELECT pp.*, u.full_name AS student_name, b.batch_name FROM performance_points pp JOIN users u ON pp.student_id = u.userID LEFT JOIN batch b ON pp.batch_id = b.batchID WHERE pp.awarded_by = $user_id ORDER BY pp.performancePointID DESC LIMIT 10");
 
 // Students grouped by batch (for the Award Performance Points batch -> student filter)
 $pt_batch_students = []; // batch_id -> array of {id, name} students, used to build the JS lookup map on the points form
-$pt_bs_result = mysqli_query($conn, "SELECT e.batch_id, u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id JOIN batches b ON e.batch_id = b.id WHERE b.lecturer_id = $user_id AND e.status = 'active' ORDER BY u.full_name");
+$pt_bs_result = mysqli_query($conn, "SELECT e.batch_id, u.userID, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.userID JOIN batch b ON e.batch_id = b.batchID WHERE b.lecturer_id = $user_id AND e.status = 'active' ORDER BY u.full_name");
 while ($pbs = mysqli_fetch_assoc($pt_bs_result)) {
-    $pt_batch_students[$pbs['batch_id']][] = ['id' => $pbs['id'], 'name' => $pbs['full_name']]; // Group each student under their batch's id
+    $pt_batch_students[$pbs['batch_id']][] = ['id' => $pbs['userID'], 'name' => $pbs['full_name']]; // Group each student under their batch's id
 }
 
 // Class links uploaded by this lecturer
-$my_links = mysqli_query($conn, "SELECT cl.*, b.batch_name FROM classsession cl LEFT JOIN batches b ON cl.batch_id = b.id WHERE cl.lecturer_id = $user_id ORDER BY cl.class_date DESC");
+$my_links = mysqli_query($conn, "SELECT cl.*, b.batch_name FROM class_sessions cl LEFT JOIN batch b ON cl.batch_id = b.batchID WHERE cl.lecturer_id = $user_id ORDER BY cl.class_date DESC");
 
-// Study materials uploaded by this lecturer
-$uploader_name = mysqli_real_escape_string($conn, $full_name); // study_materials.uploaded_by stores the lecturer's name, not their id
-$my_materials  = mysqli_query($conn, "SELECT sm.*, b.batch_name FROM study_materials sm LEFT JOIN batches b ON sm.batch_id = b.id WHERE sm.uploaded_by = '$uploader_name' ORDER BY sm.created_at DESC");
+// Study materials uploaded by this lecturer (uploaded_by_lecturer_id is a
+// proper FK to users.userID now, so we filter by id instead of matching a name)
+$my_materials = mysqli_query($conn, "SELECT sm.*, b.batch_name FROM study_materials sm LEFT JOIN batch b ON sm.batch_id = b.batchID WHERE sm.uploaded_by_lecturer_id = $user_id ORDER BY sm.created_at DESC");
 
 // Announcements posted by this lecturer
-$my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE posted_by = $user_id ORDER BY created_at DESC");
+$my_announcements = mysqli_query($conn, "SELECT * FROM announcement WHERE posted_by = $user_id ORDER BY created_at DESC");
 ?>
 
 <div class="dashboard-wrapper">
@@ -208,7 +208,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <!-- When batch changes, form auto-submits to reload students for that batch -->
                         <select name="att_batch_id" onchange="this.form.submit()">
                             <?php foreach ($batch_rows as $b): ?>
-                                <option value="<?php echo $b['id']; ?>" <?php if ($selected_batch_id == $b['id']) echo 'selected'; ?>>
+                                <option value="<?php echo $b['batchID']; ?>" <?php if ($selected_batch_id == $b['batchID']) echo 'selected'; ?>>
                                     <?php echo $b['batch_name']; ?> – <?php echo $b['subject_name']; ?>
                                 </option>
                                 <!-- Marks the currently selected batch as already selected -->
@@ -230,7 +230,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <tr>
                             <td><?php echo $s['full_name']; ?></td>
                             <td>
-                                <select name="att_status[<?php echo $s['id']; ?>]">
+                                <select name="att_status[<?php echo $s['userID']; ?>]">
                                     <!-- Array-style name (att_status[student_id]) lets PHP receive one status per student in a single $_POST array -->
                                     <option value="present">✅ Present</option>
                                     <option value="absent">❌ Absent</option>
@@ -259,7 +259,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <select id="att_record_batch_filter">
                             <option value="">All Batches</option>
                             <?php foreach ($batch_rows as $b): ?>
-                                <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
+                                <option value="<?php echo $b['batchID']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
                                 <!-- One option per batch this lecturer teaches -->
                             <?php endforeach; ?>
                         </select>
@@ -334,7 +334,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <select name="res_batch_id" required>
                             <option value="">-- Select --</option>
                             <?php foreach ($batch_rows as $b): ?>
-                                <option value="<?php echo $b['id']; ?>"><?php echo $b['batch_name']; ?></option>
+                                <option value="<?php echo $b['batchID']; ?>"><?php echo $b['batch_name']; ?></option>
                                 <!-- One option per batch this lecturer teaches -->
                             <?php endforeach; ?>
                         </select>
@@ -345,9 +345,9 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                             <option value="">-- Select --</option>
                             <?php
                             // Re-fetch since $all_students pointer may be used later
-                            $stu_dd = mysqli_query($conn, "SELECT DISTINCT u.id, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.id JOIN batches b ON e.batch_id = b.id WHERE b.lecturer_id = $user_id ORDER BY u.full_name");
+                            $stu_dd = mysqli_query($conn, "SELECT DISTINCT u.userID, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.userID JOIN batch b ON e.batch_id = b.batchID WHERE b.lecturer_id = $user_id ORDER BY u.full_name");
                             while ($s = mysqli_fetch_assoc($stu_dd)): ?>
-                                <option value="<?php echo $s['id']; ?>"><?php echo $s['full_name']; ?></option>
+                                <option value="<?php echo $s['userID']; ?>"><?php echo $s['full_name']; ?></option>
                                 <!-- One option per student across all of this lecturer's batches (not filtered by the batch picked above) -->
                             <?php endwhile; ?>
                         </select>
@@ -423,8 +423,8 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <td><?php echo $r['marks']; ?>/<?php echo $r['total_marks']; ?></td>
                         <td><span class="badge badge-blue"><?php echo $r['grade']; ?></span></td>
                         <td>
-                            <a href="../../backend/crud/results/edit_result.php?id=<?php echo $r['id']; ?>" class="btn btn-small btn-primary">Edit</a>
-                            <a href="../../backend/crud/results/delete_result.php?id=<?php echo $r['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
+                            <a href="../../backend/crud/results/edit_result.php?id=<?php echo $r['resultID']; ?>" class="btn btn-small btn-primary">Edit</a>
+                            <a href="../../backend/crud/results/delete_result.php?id=<?php echo $r['resultID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
                             <!-- confirm() pops a native browser dialog; clicking Cancel cancels the navigation entirely -->
                         </td>
                     </tr>
@@ -446,7 +446,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                             <!-- onchange repopulates the Student dropdown below using the JS map further down -->
                             <option value="">-- Select Batch --</option>
                             <?php foreach ($batch_rows as $b): ?>
-                                <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?></option>
+                                <option value="<?php echo $b['batchID']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -531,7 +531,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                     <select name="link_batch_id" required>
                         <option value="">-- Select Batch --</option>
                         <?php foreach ($batch_rows as $b): ?>
-                            <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
+                            <option value="<?php echo $b['batchID']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -553,7 +553,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <td><a href="<?php echo htmlspecialchars($lnk['link_url']); ?>" target="_blank" class="btn btn-small btn-primary">🔗 Open Link</a></td>
                         <!-- target="_blank" opens the class link in a new tab so the dashboard stays open -->
                         <td>
-                            <a href="dashboard.php?delete_link=<?php echo $lnk['id']; ?>#classlinks" class="btn btn-small btn-red" onclick="return confirm('Delete this link?');">🗑️ Delete</a>
+                            <a href="dashboard.php?delete_link=<?php echo $lnk['classSessionID']; ?>#classlinks" class="btn btn-small btn-red" onclick="return confirm('Delete this link?');">🗑️ Delete</a>
                             <!-- Handled by the delete_link pre-HTML redirect block in dashboard.php -->
                         </td>
                     </tr>
@@ -580,7 +580,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                     <select name="mat_batch_id" required>
                         <option value="">-- Select Batch --</option>
                         <?php foreach ($batch_rows as $b): ?>
-                            <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
+                            <option value="<?php echo $b['batchID']; ?>"><?php echo htmlspecialchars($b['batch_name']); ?> – <?php echo htmlspecialchars($b['subject_name']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -610,7 +610,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <td style="font-size:0.82rem;"><?php echo date('d M Y', strtotime($m['created_at'])); ?></td>
                         <td>
                             <a href="../../uploads/materials/<?php echo urlencode($m['file_path']); ?>" target="_blank" class="btn btn-small btn-primary">📥 View</a>
-                            <a href="../../backend/crud/materials/delete_material.php?id=<?php echo $m['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete this material?');">🗑️ Delete</a>
+                            <a href="../../backend/crud/materials/delete_material.php?id=<?php echo $m['studyMaterialID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete this material?');">🗑️ Delete</a>
                         </td>
                     </tr>
                 <?php endwhile; endif; ?>
@@ -659,7 +659,7 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcements WHERE poste
                         <td style="font-size:0.82rem; color:#64748b;"><?php echo htmlspecialchars(substr($ann['message'], 0, 60)) . (strlen($ann['message']) > 60 ? '...' : ''); ?></td>
                         <!-- Truncates the message to 60 characters and adds "..." only if it was actually cut off -->
                         <td>
-                            <a href="dashboard.php?delete_ann=<?php echo $ann['id']; ?>#announcements" class="btn btn-small btn-red" onclick="return confirm('Delete this announcement?');">🗑️ Delete</a>
+                            <a href="dashboard.php?delete_ann=<?php echo $ann['announcementID']; ?>#announcements" class="btn btn-small btn-red" onclick="return confirm('Delete this announcement?');">🗑️ Delete</a>
                             <!-- Handled by the delete_ann pre-HTML redirect block in dashboard.php -->
                         </td>
                     </tr>

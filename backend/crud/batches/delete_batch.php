@@ -26,7 +26,7 @@ require '../../config/db.php';
 // ------------------------------------------------------------
 // AUTHORIZATION CHECK
 // ------------------------------------------------------------
-// Only users with the following roles can delete batches:
+// Only users with the following roles can delete batch:
 // - admin
 // - manager
 //
@@ -71,12 +71,12 @@ $id = (int)($_GET['id'] ?? 0);
 // Only run the DELETE query if ID is greater than 0.
 //
 // Example:
-// DELETE FROM batches WHERE id=5
+// DELETE FROM batch WHERE batchID=5
 if ($id > 0) {
 
     mysqli_query(
         $conn,
-        "DELETE FROM batches WHERE id=$id"
+        "DELETE FROM batch WHERE batchID=$id"
     );
 
 }
@@ -161,26 +161,26 @@ $id = 12
 
 SQL Query Executed:
 
-DELETE FROM batches
-WHERE id = 12;
+DELETE FROM batch
+WHERE batchID = 12;
 
 ============================================================
 DATABASE QUERY
 ============================================================
 
-DELETE FROM batches
-WHERE id = $id;
+DELETE FROM batch
+WHERE batchID = $id;
 
 Purpose:
 Deletes the batch record whose ID matches $id.
 
 Example:
 
-DELETE FROM batches
-WHERE id = 8;
+DELETE FROM batch
+WHERE batchID = 8;
 
 This permanently removes Batch #8
-from the batches table.
+from the batch table.
 
 ============================================================
 PROGRAM FLOW
@@ -239,7 +239,7 @@ SECURITY IMPROVEMENTS
 
 $check = mysqli_query(
     $conn,
-    "SELECT id FROM batches WHERE id=$id"
+    "SELECT batchID FROM batch WHERE batchID=$id"
 );
 
 if(mysqli_num_rows($check) > 0){
@@ -252,7 +252,7 @@ if(mysqli_num_rows($check) > 0){
 
 $stmt = mysqli_prepare(
     $conn,
-    "DELETE FROM batches WHERE id=?"
+    "DELETE FROM batch WHERE batchID=?"
 );
 
 mysqli_stmt_bind_param(

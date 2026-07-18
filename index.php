@@ -14,11 +14,11 @@ require 'backend/config/helpers.php';
 // Count stats to show on the home page
 $total_students  = count_rows($conn, 'users',   "role='student'");
 $total_lecturers = count_rows($conn, 'users',   "role='lecturer'");
-$total_subjects  = count_rows($conn, 'subjects');
-$total_batches   = count_rows($conn, 'batches', "status='active'");
+$total_subjects  = count_rows($conn, 'subject');
+$total_batches   = count_rows($conn, 'batch', "status='active'");
 
 // Get latest 3 announcements
-$announcements = mysqli_query($conn, "SELECT * FROM announcements ORDER BY created_at DESC LIMIT 3");
+$announcements = mysqli_query($conn, "SELECT * FROM announcement ORDER BY created_at DESC LIMIT 3");
 
 // Set page info for the header
 $page_title  = "Home";

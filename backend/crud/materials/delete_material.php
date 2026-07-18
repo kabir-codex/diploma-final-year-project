@@ -59,7 +59,7 @@ $mat = $id
     ? mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM study_materials WHERE id=$id"
+            "SELECT * FROM study_materials WHERE studyMaterialID=$id"
         )
     )
     : null;
@@ -90,7 +90,7 @@ if ($mat) {
     // --------------------------------------------------------
     mysqli_query(
         $conn,
-        "DELETE FROM study_materials WHERE id=$id"
+        "DELETE FROM study_materials WHERE studyMaterialID=$id"
     );
 }
 
@@ -180,14 +180,14 @@ exit()
 SQL QUERY
 ============================================================
 
-SELECT * FROM study_materials WHERE id=$id;
+SELECT * FROM study_materials WHERE studyMaterialID=$id;
 
 Purpose:
 Fetch material details
 
 ------------------------------------------------------------
 
-DELETE FROM study_materials WHERE id=$id;
+DELETE FROM study_materials WHERE studyMaterialID=$id;
 
 Purpose:
 Remove material record from database
@@ -211,7 +211,7 @@ SECURITY IMPROVEMENTS
 ============================================================
 
 1. Ensure lecturer owns the material before deletion:
-   WHERE id=$id AND uploaded_by=$_SESSION['user_id']
+   WHERE studyMaterialID=$id AND uploaded_by=$_SESSION['user_id']
 
 2. Use prepared statements
 
