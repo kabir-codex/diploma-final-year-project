@@ -116,6 +116,17 @@ if (isset($_POST['att_batch_id'])) $selected_batch_id = (int)$_POST['att_batch_i
 // Students in the selected batch
 $students_result = mysqli_query($conn, "SELECT u.userID, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.userID WHERE e.batch_id = $selected_batch_id AND e.status = 'active' ORDER BY u.full_name");
 
+// Which batch is selected for Upload Result (separate from the attendance one above —
+// starts empty on first page load, since a lecturer must pick a batch before seeing students)
+$selected_result_batch_id = isset($_POST['res_batch_id']) ? (int)$_POST['res_batch_id'] : 0;
+
+// Students in that batch only (bug fix: this used to list ALL students across every
+// batch this lecturer teaches, regardless of which batch was picked above)
+$result_students = null;
+if ($selected_result_batch_id > 0) {
+    $result_students = mysqli_query($conn, "SELECT DISTINCT u.userID, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.userID WHERE e.batch_id = $selected_result_batch_id AND e.status = 'active' ORDER BY u.full_name");
+}
+
 // Attendance records this lecturer has marked, across all their batches (most recent first)
 $my_attendance_records = mysqli_query($conn, "
     SELECT a.attendanceID, a.attend_date, a.status, b.batchID AS batch_id, b.batch_name, u.full_name AS student_name
@@ -331,10 +342,11 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcement WHERE posted
                 <div class="form-row">
                     <div class="form-group">
                         <label>Batch</label>
-                        <select name="res_batch_id" required>
+                        <!-- When batch changes, form auto-submits to reload the student list for that batch -->
+                        <select name="res_batch_id" required onchange="this.form.submit()">
                             <option value="">-- Select --</option>
                             <?php foreach ($batch_rows as $b): ?>
-                                <option value="<?php echo $b['batchID']; ?>"><?php echo $b['batch_name']; ?></option>
+                                <option value="<?php echo $b['batchID']; ?>" <?php if ($selected_result_batch_id == $b['batchID']) echo 'selected'; ?>><?php echo $b['batch_name']; ?></option>
                                 <!-- One option per batch this lecturer teaches -->
                             <?php endforeach; ?>
                         </select>
@@ -342,14 +354,17 @@ $my_announcements = mysqli_query($conn, "SELECT * FROM announcement WHERE posted
                     <div class="form-group">
                         <label>Student</label>
                         <select name="res_student_id" required>
-                            <option value="">-- Select --</option>
-                            <?php
-                            // Re-fetch since $all_students pointer may be used later
-                            $stu_dd = mysqli_query($conn, "SELECT DISTINCT u.userID, u.full_name FROM enrollments e JOIN users u ON e.student_id = u.userID JOIN batch b ON e.batch_id = b.batchID WHERE b.lecturer_id = $user_id ORDER BY u.full_name");
-                            while ($s = mysqli_fetch_assoc($stu_dd)): ?>
-                                <option value="<?php echo $s['userID']; ?>"><?php echo $s['full_name']; ?></option>
-                                <!-- One option per student across all of this lecturer's batches (not filtered by the batch picked above) -->
-                            <?php endwhile; ?>
+                            <?php if ($selected_result_batch_id == 0): ?>
+                                <option value="">-- Select a batch first --</option>
+                            <?php elseif ($result_students && mysqli_num_rows($result_students) > 0): ?>
+                                <option value="">-- Select --</option>
+                                <?php while ($s = mysqli_fetch_assoc($result_students)): ?>
+                                    <option value="<?php echo $s['userID']; ?>"><?php echo $s['full_name']; ?></option>
+                                    <!-- One option per student enrolled in the batch selected above -->
+                                <?php endwhile; ?>
+                            <?php else: ?>
+                                <option value="">-- No students enrolled in this batch --</option>
+                            <?php endif; ?>
                         </select>
                     </div>
                 </div>

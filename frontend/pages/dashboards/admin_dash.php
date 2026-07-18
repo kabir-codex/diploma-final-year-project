@@ -86,7 +86,11 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
             <a href="#users">                       <span class="sidebar-icon">👥</span> Users</a>
             <a href="#subjects">                    <span class="sidebar-icon">📚</span> Subjects</a>
             <a href="#batches">                     <span class="sidebar-icon">🗓️</span> Batches</a>
+            <!-- DISABLED: Payment Approval & Management feature is temporarily turned off.
+                 To re-enable, uncomment this link AND remove the "if (false)" wrapper
+                 around the #payments panel further down in this file.
             <a href="#payments">                    <span class="sidebar-icon">💳</span> Payments</a>
+            -->
             <a href="#announcements">               <span class="sidebar-icon">📢</span> Announcements</a>
             <a href="#enquiries">                   <span class="sidebar-icon">📬</span> Enquiries</a>
             <a href="#link_parent">                  <span class="sidebar-icon">👨‍👩‍👧</span> Link Parent</a>
@@ -227,6 +231,13 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
         </div>
 
         <!-- ===== PAYMENTS TABLE ===== -->
+        <!--
+            DISABLED: Payment Approval & Management feature is temporarily
+            turned off in the Admin Portal. All code below is untouched —
+            to re-enable, change "if (false)" to "if (true)" on the next
+            line (and uncomment the nav link near the top of this file).
+        -->
+        <?php if (false): ?>
         <div id="payments" class="panel">
             <div class="panel-title">💳 Payment Approval &amp; Management</div>
 
@@ -303,6 +314,8 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                 </table>
             </div>
         </div>
+        <?php endif; ?>
+        <!-- END DISABLED: Payment Approval & Management -->
 
         <!-- ===== ANNOUNCEMENTS TABLE ===== -->
         <div id="announcements" class="panel">
