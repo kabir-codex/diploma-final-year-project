@@ -44,7 +44,7 @@ function require_login() {
 function require_role($allowed_roles) {
     require_login();                                             // Step 1: must be logged in at all (reuses Function 3 above)
     if (!in_array($_SESSION['role'], $allowed_roles)) {              // Step 2: in_array() checks if the current user's role
-                                                                      // is inside the list of roles that are allowed to see this page
+                                                                      // is inside the list of roles that are allowed to see this page (login page)
                                                        
         header("Location: /activate_academy/frontend/pages/login.php");
         exit();
@@ -54,21 +54,25 @@ function require_role($allowed_roles) {
 
 // Show a success message box (green)
 function success_msg($text) {
-
-    // Just returns a ready-made HTML <div> string with inline CSS styling
-    // $text gets inserted directly into the string ("string interpolation")
-    return "<div style='background:#dcfce7; color:#166534; padding:12px; border-radius:8px; margin-bottom:16px;'>✅ $text</div>";
+    return "<div style='background:#dcfce7; color:#166534; padding:12px; border-radius:8px; margin-bottom:16px;'>✅ $text</div>";      // Just returns a ready-made HTML <div> string with inline CSS styling
+                                                                                                                                       // $text gets inserted directly into the string
 }
+
 
 // Show an error message box (red)
 function error_msg($text) {
     return "<div style='background:#fee2e2; color:#991b1b; padding:12px; border-radius:8px; margin-bottom:16px;'>❌ $text</div>";
-}
+} 
+//echo success_msg("User added successfully!"); after a form submits
 
-// Calculate the letter grade for a mark out of 100, using the academy's grading scale.
-// Mirrors the client-side aaCalcGrade() JS function used on the result forms.
+
+
+// Calculate the letter grade for a mark out of 100
+// Mirrors the client-side JS version used on result forms
 function calc_grade($marks) {
-    $marks = (int) $marks;
+    $marks = (int) $marks;              // force it to a whole number, just in case
+
+    // Checked top-down: first condition that matches "wins" and returns immediately
     if ($marks >= 85) return 'A+';
     if ($marks >= 70) return 'A';
     if ($marks >= 65) return 'A-';
@@ -80,11 +84,14 @@ function calc_grade($marks) {
     if ($marks >= 35) return 'C-';
     if ($marks >= 30) return 'D+';
     if ($marks >= 25) return 'D';
-    return 'E';
+    return 'E';                     // anything below 25 falls through to here
 }
 
 // Clean and escape user input to prevent SQL injection
-// Always use this before putting user data into a query
+//This is the security wrapper — you'll see clean($conn, $_POST['username']) etc. all over the CRUD files.
 function clean($conn, $value) {
+    // trim() removes extra spaces from the start/end (e.g. "  John " → "John")
+    // mysqli_real_escape_string() escapes dangerous characters like quotes ( ' )
+    // so they can't break out of the SQL query and run malicious commands
     return mysqli_real_escape_string($conn, trim($value));
 }
