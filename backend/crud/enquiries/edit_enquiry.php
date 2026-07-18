@@ -67,7 +67,7 @@ $enq = $id
     ? mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM enquiries WHERE id=$id"
+            "SELECT * FROM enquiries WHERE enquiryID=$id"
         )
     )
     : null;
@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
          SET
             status='$status',
             notes='$notes'
-         WHERE id=$id"
+         WHERE enquiryID=$id"
     );
 
 
@@ -344,7 +344,7 @@ DATABASE QUERIES
 
 SELECT *
 FROM enquiries
-WHERE id = $id;
+WHERE enquiryID = $id;
 
 Purpose:
 Fetch existing enquiry details.
@@ -357,7 +357,7 @@ UPDATE enquiries
 SET
     status='$status',
     notes='$notes'
-WHERE id=$id;
+WHERE enquiryID=$id;
 
 Purpose:
 Update enquiry status and notes.

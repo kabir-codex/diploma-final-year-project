@@ -50,7 +50,7 @@ $subject = $id
     ? mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM subjects WHERE id=$id"
+            "SELECT * FROM subject WHERE subjectID=$id"
         )
     )
     : null;
@@ -116,14 +116,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // --------------------------------------------------------
     mysqli_query(
         $conn,
-        "UPDATE subjects
+        "UPDATE subject
          SET
             name='$name',
             code='$code',
             level='$level',
             fee=$fee,
             description='$desc'
-         WHERE id=$id"
+         WHERE subjectID=$id"
     );
 
     // Redirect after success
@@ -382,9 +382,9 @@ foreach()
 SQL QUERY
 ============================================================
 
-UPDATE subjects
+UPDATE subject
 SET name=?, code=?, level=?, fee=?, description=?
-WHERE id=?;
+WHERE subjectID=?;
 
 Purpose:
 Updates subject details

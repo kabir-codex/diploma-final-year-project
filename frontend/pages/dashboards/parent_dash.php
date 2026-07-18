@@ -8,7 +8,7 @@
 // Get the child linked to this parent
 $child_link  = get_one_row($conn, "SELECT student_id FROM parent_student WHERE parent_id = $user_id LIMIT 1"); // A parent could theoretically have multiple children, but this dashboard only shows the first linked one
 $child_id    = $child_link ? (int)$child_link['student_id'] : 0;     // 0 means "no child linked yet"
-$child_info  = $child_id ? get_one_row($conn, "SELECT * FROM users WHERE id = $child_id") : null; // The child's user account
+$child_info  = $child_id ? get_one_row($conn, "SELECT * FROM users WHERE userID = $child_id") : null; // The child's user account
 $child_name  = $child_info ? $child_info['full_name'] : 'Not linked'; // Shown in the welcome message either way
 
 // Get child's batch IDs
@@ -21,18 +21,18 @@ $batch_ids_str = empty($child_batch_ids) ? '0' : implode(',', $child_batch_ids);
 $child_batches = mysqli_query($conn, "
     SELECT b.*, s.name AS subject_name, u.full_name AS lecturer_name
     FROM enrollments e
-    JOIN batches b ON e.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
-    JOIN users u ON b.lecturer_id = u.id
+    JOIN batch b ON e.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
+    JOIN users u ON b.lecturer_id = u.userID
     WHERE e.student_id = $child_id AND e.status = 'active'
 ");
 
 // Child's exam results
 $child_results = mysqli_query($conn, "
     SELECT r.*, b.batch_name, s.name AS subject_name
-    FROM results r
-    JOIN batches b ON r.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    FROM result r
+    JOIN batch b ON r.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE r.student_id = $child_id
     ORDER BY r.exam_date DESC
 ");
@@ -40,13 +40,13 @@ $child_results = mysqli_query($conn, "
 // Child's attendance summary
 $child_attendance = mysqli_query($conn, "
     SELECT b.batch_name, s.name AS subject_name,
-        COUNT(a.id) AS total,
+        COUNT(a.attendanceID) AS total,
         SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,
         SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,
         SUM(CASE WHEN a.status='late'    THEN 1 ELSE 0 END) AS late
     FROM attendance a
-    JOIN batches b ON a.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    JOIN batch b ON a.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE a.student_id = $child_id
     GROUP BY a.batch_id
 ");
@@ -54,15 +54,15 @@ $child_attendance = mysqli_query($conn, "
 // Child's performance points
 $pts_row     = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $child_id"); // Lifetime total across every award
 $total_pts   = $pts_row ? (int)$pts_row['total'] : 0; // Falls back to 0 if the child has never been awarded points
-$child_pts   = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.id LEFT JOIN batches b ON pp.batch_id=b.id WHERE pp.student_id=$child_id ORDER BY pp.id DESC");
+$child_pts   = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.userID LEFT JOIN batch b ON pp.batch_id=b.batchID WHERE pp.student_id=$child_id ORDER BY pp.performancePointID DESC");
 
 // Leaderboard: every student ranked by total performance points earned across all their batches
 $leaderboard_result = mysqli_query($conn, "
-    SELECT u.id, u.full_name, COALESCE(SUM(pp.points), 0) AS total_points
+    SELECT u.userID, u.full_name, COALESCE(SUM(pp.points), 0) AS total_points
     FROM users u
-    LEFT JOIN performance_points pp ON pp.student_id = u.id
+    LEFT JOIN performance_points pp ON pp.student_id = u.userID
     WHERE u.role = 'student'
-    GROUP BY u.id, u.full_name
+    GROUP BY u.userID, u.full_name
     ORDER BY total_points DESC, u.full_name ASC
 "); // Points from every batch a student attended count toward their rank, regardless of which lecturer awarded them
 $leaderboard_rows = []; // Plain array version, so it can be looped once for the table and reused to find the child's rank
@@ -70,7 +70,7 @@ $child_rank       = 0;  // 0 means "not found" (e.g. no child linked yet)
 $lb_rank          = 1;  // Running rank counter as we walk the already-sorted result
 while ($lb = mysqli_fetch_assoc($leaderboard_result)) {
     $lb['rank'] = $lb_rank;
-    if ($lb['id'] == $child_id) $child_rank = $lb_rank; // This is the linked child's row — remember their rank
+    if ($lb['userID'] == $child_id) $child_rank = $lb_rank; // This is the linked child's row — remember their rank
     $leaderboard_rows[] = $lb;
     $lb_rank++;
 }
@@ -78,18 +78,18 @@ while ($lb = mysqli_fetch_assoc($leaderboard_result)) {
 // Child's payment history
 $child_payments = mysqli_query($conn, "
     SELECT p.*, b.batch_name, s.name AS subject_name
-    FROM payments p
-    JOIN batches b ON p.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    FROM payment p
+    JOIN batch b ON p.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE p.student_id = $child_id
-    ORDER BY p.id DESC
+    ORDER BY p.paymentID DESC
 ");
 
 // Announcements for all or parents
 $announcements = mysqli_query($conn, "
     SELECT a.*, u.full_name AS posted_by_name
-    FROM announcements a
-    LEFT JOIN users u ON a.posted_by = u.id
+    FROM announcement a
+    LEFT JOIN users u ON a.posted_by = u.userID
     WHERE a.audience IN ('all', 'parents')
     ORDER BY a.created_at DESC LIMIT 10
 "); // Only shows announcements meant for everyone or specifically for parents
@@ -240,7 +240,7 @@ $announcements = mysqli_query($conn, "
                 <tbody>
                 <?php if (!empty($leaderboard_rows)):
                     foreach ($leaderboard_rows as $lb):
-                        $is_child = $lb['id'] == $child_id; // Highlight the linked child's own row
+                        $is_child = $lb['userID'] == $child_id; // Highlight the linked child's own row
                 ?>
                     <tr <?php if ($is_child) echo 'style="background:#fef3c7; font-weight:700;"'; ?>>
                         <td>#<?php echo $lb['rank']; ?></td>
@@ -273,7 +273,7 @@ $announcements = mysqli_query($conn, "
                         <td><span class="badge <?php echo $pb; ?>"><?php echo ucfirst($p['status']); ?></span></td>
                         <td>
                             <?php if ($p['status'] == 'approved'): ?>
-                                <a href="print_receipt.php?id=<?php echo $p['id']; ?>" target="_blank" class="btn btn-small btn-primary">🖨️</a>
+                                <a href="print_receipt.php?id=<?php echo $p['paymentID']; ?>" target="_blank" class="btn btn-small btn-primary">🖨️</a>
                                 <!-- Only meaningful once a payment is approved -->
                             <?php else: ?><span style="color:#94a3b8; font-size:.78rem;">N/A</span><?php endif; ?>
                         </td>

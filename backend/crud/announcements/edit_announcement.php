@@ -54,7 +54,7 @@ $ann = $id
     ? mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM announcements WHERE id=$id"
+            "SELECT * FROM announcement WHERE announcementID=$id"
         )
     )
     : null;
@@ -105,12 +105,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // --------------------------------------------------------
     mysqli_query(
         $conn,
-        "UPDATE announcements
+        "UPDATE announcement
          SET
              title='$title',
              message='$message',
              audience='$audience'
-         WHERE id=$id"
+         WHERE announcementID=$id"
     );
 
 
@@ -393,8 +393,8 @@ SQL QUERIES
 1. Retrieve Announcement
 
 SELECT *
-FROM announcements
-WHERE id = $id;
+FROM announcement
+WHERE announcementID = $id;
 
 Purpose:
 Fetch announcement details for editing.
@@ -402,12 +402,12 @@ Fetch announcement details for editing.
 
 2. Update Announcement
 
-UPDATE announcements
+UPDATE announcement
 SET
     title = '$title',
     message = '$message',
     audience = '$audience'
-WHERE id = $id;
+WHERE announcementID = $id;
 
 Purpose:
 Save the updated announcement information.

@@ -22,20 +22,20 @@ if ($filter_month  != '') $where .= " AND p.pay_month = '$filter_month'";
 if ($filter_status != '') $where .= " AND p.status = '$filter_status'";
 
 // All payments (filtered)
-$payments = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b.batch_name, s.name AS subject_name FROM payments p JOIN users u ON p.student_id=u.id JOIN batches b ON p.batch_id=b.id JOIN subjects s ON b.subject_id=s.id $where ORDER BY p.pay_month DESC, p.id DESC");
+$payments = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b.batch_name, s.name AS subject_name FROM payment p JOIN users u ON p.student_id=u.userID JOIN batch b ON p.batch_id=b.batchID JOIN subject s ON b.subject_id=s.subjectID $where ORDER BY p.pay_month DESC, p.paymentID DESC");
 
 // Revenue grouped by subject
-$by_subject = mysqli_query($conn, "SELECT s.name AS subject_name, SUM(p.amount) AS total FROM payments p JOIN batches b ON p.batch_id=b.id JOIN subjects s ON b.subject_id=s.id WHERE p.status='approved' GROUP BY s.name ORDER BY total DESC");
+$by_subject = mysqli_query($conn, "SELECT s.name AS subject_name, SUM(p.amount) AS total FROM payment p JOIN batch b ON p.batch_id=b.batchID JOIN subject s ON b.subject_id=s.subjectID WHERE p.status='approved' GROUP BY s.name ORDER BY total DESC");
 
 // Revenue grouped by month (last 12 months)
-$by_month = mysqli_query($conn, "SELECT pay_month, SUM(amount) AS total, COUNT(*) AS count FROM payments WHERE status='approved' GROUP BY pay_month ORDER BY pay_month DESC LIMIT 12");
+$by_month = mysqli_query($conn, "SELECT pay_month, SUM(amount) AS total, COUNT(*) AS count FROM payment WHERE status='approved' GROUP BY pay_month ORDER BY pay_month DESC LIMIT 12");
 
 // All available months for the filter dropdown
-$months = mysqli_query($conn, "SELECT DISTINCT pay_month FROM payments ORDER BY pay_month DESC");
+$months = mysqli_query($conn, "SELECT DISTINCT pay_month FROM payment ORDER BY pay_month DESC");
 
 // Overall totals
-$row_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS t, COUNT(*) AS c FROM payments WHERE status='approved'"));
-$row_pend  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c, SUM(amount) AS t FROM payments WHERE status='pending'"));
+$row_total = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(amount) AS t, COUNT(*) AS c FROM payment WHERE status='approved'"));
+$row_pend  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS c, SUM(amount) AS t FROM payment WHERE status='pending'"));
 
 $grand_total = $row_total['t'] ?? 0;
 $pend_amount = $row_pend['t']  ?? 0;

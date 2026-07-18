@@ -33,7 +33,7 @@ require '../../config/helpers.php';
 // ------------------------------------------------------------
 // AUTHORIZATION CHECK
 // ------------------------------------------------------------
-// Only lecturers can edit results.
+// Only lecturers can edit result.
 //
 // If not logged in OR not lecturer,
 // redirect to login page.
@@ -64,7 +64,7 @@ $res = $id
     ? mysqli_fetch_assoc(
         mysqli_query(
             $conn,
-            "SELECT * FROM results WHERE id=$id"
+            "SELECT * FROM result WHERE resultID=$id"
         )
     )
     : null;
@@ -134,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // --------------------------------------------------------
     mysqli_query(
         $conn,
-        "UPDATE results
+        "UPDATE result
          SET
             exam_name='$exam_name',
             exam_date='$exam_date',
@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             total_marks=$total_marks,
             grade='$grade',
             comments='$comments'
-         WHERE id=$id"
+         WHERE resultID=$id"
     );
 
     // Redirect after update

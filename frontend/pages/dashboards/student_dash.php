@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_payment'])) {
     if (!$batch_id || $amount <= 0 || empty($pay_month)) {
         $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Batch, amount and month are required.</div>"; // Required fields check
     } else {
-        mysqli_query($conn, "INSERT INTO payments (student_id, batch_id, amount, pay_month, receipt_no, pay_date, receipt_file, status) VALUES ($user_id, $batch_id, $amount, '$pay_month', '$rec_no', '$pay_date', '$filename', 'pending')"); // Save the payment, always starting as 'pending' until staff approve it
+        mysqli_query($conn, "INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, receipt_file, status) VALUES ($user_id, $batch_id, $amount, '$pay_month', '$rec_no', '$pay_date', '$filename', 'pending')"); // Save the payment, always starting as 'pending' until staff approve it
         $pay_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Payment submitted for approval! Receipt: <strong>$rec_no</strong></div>";
     }
 }
@@ -38,11 +38,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_payment'])) {
 
 // Batches this student is enrolled in
 $my_batches = mysqli_query($conn, "
-    SELECT e.id AS enroll_id, b.*, s.name AS subject_name, u.full_name AS lecturer_name, e.status AS enroll_status
+    SELECT e.enrollmentID AS enroll_id, b.*, s.name AS subject_name, u.full_name AS lecturer_name, e.status AS enroll_status
     FROM enrollments e
-    JOIN batches b ON e.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
-    JOIN users u ON b.lecturer_id = u.id
+    JOIN batch b ON e.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
+    JOIN users u ON b.lecturer_id = u.userID
     WHERE e.student_id = $user_id AND e.status = 'active'
     ORDER BY b.batch_name
 ");
@@ -50,7 +50,7 @@ $my_batches = mysqli_query($conn, "
 // Collect batch IDs as array for later queries
 $my_batch_ids = []; // Plain list of batch ids this student is enrolled in
 $batch_rows   = []; // Same data as an array of rows, so it can be looped multiple times in the HTML below
-$bk = mysqli_query($conn, "SELECT e.batch_id, b.batch_name, s.name AS subject_name FROM enrollments e JOIN batches b ON e.batch_id=b.id JOIN subjects s ON b.subject_id=s.id WHERE e.student_id=$user_id AND e.status='active'");
+$bk = mysqli_query($conn, "SELECT e.batch_id, b.batch_name, s.name AS subject_name FROM enrollments e JOIN batch b ON e.batch_id=b.batchID JOIN subject s ON b.subject_id=s.subjectID WHERE e.student_id=$user_id AND e.status='active'");
 while ($r = mysqli_fetch_assoc($bk)) {
     $my_batch_ids[] = $r['batch_id'];
     $batch_rows[]   = $r;
@@ -60,23 +60,23 @@ $batch_ids_str = empty($my_batch_ids) ? '0' : implode(',', $my_batch_ids); // Co
 // My exam results
 $my_results = mysqli_query($conn, "
     SELECT r.*, b.batch_name, s.name AS subject_name
-    FROM results r
-    JOIN batches b ON r.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    FROM result r
+    JOIN batch b ON r.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE r.student_id = $user_id
     ORDER BY r.exam_date DESC
 ");
 
 // My attendance summary per batch (used to compute the overall % per batch)
 $my_attendance = mysqli_query($conn, "
-    SELECT b.id AS batch_id, b.batch_name, s.name AS subject_name,
-        COUNT(a.id) AS total,
+    SELECT b.batchID AS batch_id, b.batch_name, s.name AS subject_name,
+        COUNT(a.attendanceID) AS total,
         SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,
         SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,
         SUM(CASE WHEN a.status='late'    THEN 1 ELSE 0 END) AS late
     FROM attendance a
-    JOIN batches b ON a.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    JOIN batch b ON a.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE a.student_id = $user_id
     GROUP BY a.batch_id
 ");
@@ -92,10 +92,10 @@ while ($row = mysqli_fetch_assoc($my_attendance)) {
 
 // Detailed, per-record attendance (one row per date/batch) for the redesigned table
 $my_attendance_records = mysqli_query($conn, "
-    SELECT a.attend_date, a.status, b.id AS batch_id, b.batch_name, s.name AS subject_name
+    SELECT a.attend_date, a.status, b.batchID AS batch_id, b.batch_name, s.name AS subject_name
     FROM attendance a
-    JOIN batches b ON a.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    JOIN batch b ON a.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE a.student_id = $user_id
     ORDER BY a.attend_date DESC
 ");
@@ -103,15 +103,15 @@ $my_attendance_records = mysqli_query($conn, "
 // My performance points
 $my_points_row = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $user_id"); // Lifetime total across every award
 $total_points  = $my_points_row ? (int)$my_points_row['total'] : 0; // Falls back to 0 if never awarded any points
-$my_points     = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.id LEFT JOIN batches b ON pp.batch_id=b.id WHERE pp.student_id=$user_id ORDER BY pp.id DESC");
+$my_points     = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.userID LEFT JOIN batch b ON pp.batch_id=b.batchID WHERE pp.student_id=$user_id ORDER BY pp.performancePointID DESC");
 
 // Leaderboard: every student ranked by total performance points earned across all their batches
 $leaderboard_result = mysqli_query($conn, "
-    SELECT u.id, u.full_name, COALESCE(SUM(pp.points), 0) AS total_points
+    SELECT u.userID, u.full_name, COALESCE(SUM(pp.points), 0) AS total_points
     FROM users u
-    LEFT JOIN performance_points pp ON pp.student_id = u.id
+    LEFT JOIN performance_points pp ON pp.student_id = u.userID
     WHERE u.role = 'student'
-    GROUP BY u.id, u.full_name
+    GROUP BY u.userID, u.full_name
     ORDER BY total_points DESC, u.full_name ASC
 "); // Points from every batch a student attended count toward their rank, regardless of which lecturer awarded them
 $leaderboard_rows = []; // Plain array version, so it can be looped once for the table and reused to find my own rank
@@ -119,7 +119,7 @@ $my_rank          = 0;  // 0 means "not found" (shouldn't happen for a logged-in
 $lb_rank          = 1;  // Running rank counter as we walk the already-sorted result
 while ($lb = mysqli_fetch_assoc($leaderboard_result)) {
     $lb['rank'] = $lb_rank;
-    if ($lb['id'] == $user_id) $my_rank = $lb_rank; // This is the logged-in student's row — remember their rank
+    if ($lb['userID'] == $user_id) $my_rank = $lb_rank; // This is the logged-in student's row — remember their rank
     $leaderboard_rows[] = $lb;
     $lb_rank++;
 }
@@ -127,18 +127,18 @@ while ($lb = mysqli_fetch_assoc($leaderboard_result)) {
 // My payment history
 $my_payments = mysqli_query($conn, "
     SELECT p.*, b.batch_name, s.name AS subject_name
-    FROM payments p
-    JOIN batches b ON p.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    FROM payment p
+    JOIN batch b ON p.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE p.student_id = $user_id
-    ORDER BY p.id DESC
+    ORDER BY p.paymentID DESC
 ");
 
 // Announcements for all or students
 $announcements = mysqli_query($conn, "
     SELECT a.*, u.full_name AS posted_by_name
-    FROM announcements a
-    LEFT JOIN users u ON a.posted_by = u.id
+    FROM announcement a
+    LEFT JOIN users u ON a.posted_by = u.userID
     WHERE a.audience IN ('all', 'students')
     ORDER BY a.created_at DESC
     LIMIT 10
@@ -147,10 +147,10 @@ $announcements = mysqli_query($conn, "
 // Class links for my batches
 $class_sessions = mysqli_query($conn, "
     SELECT cl.*, b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name
-    FROM classsession cl
-    JOIN batches b ON cl.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
-    JOIN users u ON cl.lecturer_id = u.id
+    FROM class_sessions cl
+    JOIN batch b ON cl.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
+    JOIN users u ON cl.lecturer_id = u.userID
     WHERE cl.batch_id IN ($batch_ids_str)
     ORDER BY cl.class_date DESC
     LIMIT 20
@@ -160,8 +160,8 @@ $class_sessions = mysqli_query($conn, "
 $materials = mysqli_query($conn, "
     SELECT sm.*, b.batch_name, s.name AS subject_name
     FROM study_materials sm
-    LEFT JOIN batches b ON sm.batch_id = b.id
-    LEFT JOIN subjects s ON b.subject_id = s.id
+    LEFT JOIN batch b ON sm.batch_id = b.batchID
+    LEFT JOIN subject s ON b.subject_id = s.subjectID
     WHERE sm.batch_id IN ($batch_ids_str)
     ORDER BY sm.created_at DESC
 ");
@@ -382,7 +382,7 @@ $materials = mysqli_query($conn, "
                 <tbody>
                 <?php if (!empty($leaderboard_rows)):
                     foreach ($leaderboard_rows as $lb):
-                        $is_me = $lb['id'] == $user_id; // Highlight the logged-in student's own row
+                        $is_me = $lb['userID'] == $user_id; // Highlight the logged-in student's own row
                 ?>
                     <tr <?php if ($is_me) echo 'style="background:#fef3c7; font-weight:700;"'; ?>>
                         <td>#<?php echo $lb['rank']; ?></td>
@@ -448,7 +448,7 @@ $materials = mysqli_query($conn, "
                         <td><span class="badge <?php echo $pb; ?>"><?php echo ucfirst($p['status']); ?></span></td>
                         <td>
                             <?php if ($p['status'] == 'approved'): ?>
-                                <a href="print_receipt.php?id=<?php echo $p['id']; ?>" target="_blank" class="btn btn-small btn-primary">🖨️</a>
+                                <a href="print_receipt.php?id=<?php echo $p['paymentID']; ?>" target="_blank" class="btn btn-small btn-primary">🖨️</a>
                                 <!-- Only meaningful once a payment is approved -->
                             <?php else: ?>
                                 <span style="font-size:.78rem; color:#94a3b8;">N/A</span>

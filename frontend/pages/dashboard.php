@@ -37,14 +37,14 @@ $full_name = $_SESSION['full_name'];
 
 if ($role == 'lecturer' && isset($_GET['delete_link'])) {
     $del_id = (int)$_GET['delete_link'];
-    mysqli_query($conn, "DELETE FROM classsession WHERE id=$del_id AND lecturer_id=$user_id");
+    mysqli_query($conn, "DELETE FROM class_sessions WHERE classSessionID=$del_id AND lecturer_id=$user_id");
     header("Location: dashboard.php#classlinks");
     exit();
 }
 
 if ($role == 'lecturer' && isset($_GET['delete_ann'])) {
     $del_id = (int)$_GET['delete_ann'];
-    mysqli_query($conn, "DELETE FROM announcements WHERE id=$del_id AND posted_by=$user_id");
+    mysqli_query($conn, "DELETE FROM announcement WHERE announcementID=$del_id AND posted_by=$user_id");
     header("Location: dashboard.php#announcements");
     exit();
 }
@@ -52,7 +52,7 @@ if ($role == 'lecturer' && isset($_GET['delete_ann'])) {
 // Receptionist: unlink a parent from a student
 if ($role == 'receptionist' && isset($_GET['unlink_id'])) {
     $ul_id = (int)$_GET['unlink_id'];
-    if ($ul_id > 0) mysqli_query($conn, "DELETE FROM parent_student WHERE id=$ul_id");
+    if ($ul_id > 0) mysqli_query($conn, "DELETE FROM parent_student WHERE parentStudentID=$ul_id");
     header("Location: dashboard.php#link_parent");
     exit();
 }
@@ -60,7 +60,7 @@ if ($role == 'receptionist' && isset($_GET['unlink_id'])) {
 // Admin: unlink a parent from a student
 if ($role == 'admin' && isset($_GET['unlink_id'])) {
     $ul_id = (int)$_GET['unlink_id'];
-    if ($ul_id > 0) mysqli_query($conn, "DELETE FROM parent_student WHERE id=$ul_id");
+    if ($ul_id > 0) mysqli_query($conn, "DELETE FROM parent_student WHERE parentStudentID=$ul_id");
     header("Location: dashboard.php#link_parent");
     exit();
 }

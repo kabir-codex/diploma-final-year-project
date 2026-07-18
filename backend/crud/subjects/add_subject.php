@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // ----------------------------------------------------
         mysqli_query(
             $conn,
-            "INSERT INTO subjects
+            "INSERT INTO subject
             (
                 name,
                 code,
@@ -373,7 +373,7 @@ htmlspecialchars()
 SQL QUERY
 ============================================================
 
-INSERT INTO subjects
+INSERT INTO subject
 (name, code, level, fee, description)
 VALUES (...)
 

@@ -50,15 +50,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (hash_equals($stored, $password)) {
                     $login_ok  = true;
                     $new_hash  = password_hash($password, PASSWORD_DEFAULT);
-                    $uid       = (int)$user['id'];
-                    mysqli_query($conn, "UPDATE users SET password='" . mysqli_real_escape_string($conn, $new_hash) . "' WHERE id=$uid");
+                    $uid       = (int)$user['userID'];
+                    mysqli_query($conn, "UPDATE users SET password='" . mysqli_real_escape_string($conn, $new_hash) . "' WHERE userID=$uid");
                 }
             }
         }
 
         if ($login_ok) {
             // User found — save their info in the session
-            $_SESSION['user_id']   = $user['id'];
+            $_SESSION['user_id']   = $user['userID'];
             $_SESSION['username']  = $user['username'];
             $_SESSION['full_name'] = $user['full_name'];
             $_SESSION['role']      = $user['role'];

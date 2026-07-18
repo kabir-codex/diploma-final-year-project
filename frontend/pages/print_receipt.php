@@ -13,7 +13,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $id  = (int)($_GET['id'] ?? 0);
-$res = $id ? mysqli_fetch_assoc(mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b.batch_name, s.name AS subject_name FROM payments p JOIN users u ON p.student_id=u.id JOIN batches b ON p.batch_id=b.id JOIN subjects s ON b.subject_id=s.id WHERE p.id=$id")) : null;
+$res = $id ? mysqli_fetch_assoc(mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b.batch_name, s.name AS subject_name FROM payment p JOIN users u ON p.student_id=u.userID JOIN batch b ON p.batch_id=b.batchID JOIN subject s ON b.subject_id=s.subjectID WHERE p.paymentID=$id")) : null;
 
 if (!$res) { echo "Receipt not found."; exit(); }
 ?>

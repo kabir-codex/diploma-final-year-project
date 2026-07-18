@@ -7,21 +7,21 @@
 // Stats
 $cnt_students  = count_rows($conn, 'users',   "role='student'");   // Total student accounts
 $cnt_lecturers = count_rows($conn, 'users',   "role='lecturer'");  // Total lecturer accounts
-$cnt_batches   = count_rows($conn, 'batches', "status='active'");  // Currently active batches
-$cnt_subjects  = count_rows($conn, 'subjects');                    // Total subjects offered
-$rev           = get_one_row($conn, "SELECT SUM(amount) AS total FROM payments WHERE status='approved'"); // Sum of every approved payment
+$cnt_batches   = count_rows($conn, 'batch',   "status='active'");  // Currently active batches
+$cnt_subjects  = count_rows($conn, 'subject');                     // Total subjects offered
+$rev           = get_one_row($conn, "SELECT SUM(amount) AS total FROM payment WHERE status='approved'"); // Sum of every approved payment
 $total_revenue = $rev ? (float)$rev['total'] : 0; // Falls back to 0 if there are no approved payments yet
 
 // Top 5 students by average exam score
 $top_students = mysqli_query($conn, "
-    SELECT u.full_name, u.id,
+    SELECT u.full_name, u.userID,
         ROUND(AVG(r.marks), 1) AS avg_score,
-        COUNT(r.id) AS exams_taken,
-        (SELECT SUM(pp.points) FROM performance_points pp WHERE pp.student_id = u.id) AS total_pts
+        COUNT(r.resultID) AS exams_taken,
+        (SELECT SUM(pp.points) FROM performance_points pp WHERE pp.student_id = u.userID) AS total_pts
     FROM users u
-    LEFT JOIN results r ON r.student_id = u.id
+    LEFT JOIN result r ON r.student_id = u.userID
     WHERE u.role = 'student'
-    GROUP BY u.id, u.full_name
+    GROUP BY u.userID, u.full_name
     HAVING avg_score IS NOT NULL
     ORDER BY avg_score DESC
     LIMIT 5
@@ -30,14 +30,14 @@ $top_students = mysqli_query($conn, "
 // Batch summary with attendance percentage
 $batches = mysqli_query($conn, "
     SELECT b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name,
-        (SELECT COUNT(*) FROM enrollments e WHERE e.batch_id = b.id AND e.status = 'active') AS enrolled,
-        (SELECT ROUND(AVG(r.marks), 1) FROM results r WHERE r.batch_id = b.id) AS avg_score,
-        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.id AND a.status = 'present') AS present_count,
-        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.id) AS total_att,
+        (SELECT COUNT(*) FROM enrollments e WHERE e.batch_id = b.batchID AND e.status = 'active') AS enrolled,
+        (SELECT ROUND(AVG(r.marks), 1) FROM result r WHERE r.batch_id = b.batchID) AS avg_score,
+        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.batchID AND a.status = 'present') AS present_count,
+        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.batchID) AS total_att,
         b.status
-    FROM batches b
-    JOIN subjects s ON b.subject_id = s.id
-    JOIN users u ON b.lecturer_id = u.id
+    FROM batch b
+    JOIN subject s ON b.subject_id = s.subjectID
+    JOIN users u ON b.lecturer_id = u.userID
     ORDER BY b.status DESC
 "); // Each metric (enrolled, avg_score, attendance counts) is its own subquery — keeps the main query simple to read
 

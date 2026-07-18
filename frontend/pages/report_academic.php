@@ -17,24 +17,24 @@ $filter_batch = isset($_GET['batch_id']) ? (int)$_GET['batch_id'] : 0;
 $where_batch  = $filter_batch ? "AND r.batch_id = $filter_batch" : "";
 
 // All batches for filter dropdown
-$batches_dd = mysqli_query($conn, "SELECT b.id, b.batch_name, s.name AS subject_name FROM batches b JOIN subjects s ON b.subject_id=s.id ORDER BY b.batch_name");
+$batches_dd = mysqli_query($conn, "SELECT b.batchID, b.batch_name, s.name AS subject_name FROM batch b JOIN subject s ON b.subject_id=s.subjectID ORDER BY b.batch_name");
 
 // All exam results (with optional batch filter)
 $results = mysqli_query($conn, "
     SELECT r.*, u.full_name AS student_name, b.batch_name, s.name AS subject_name
-    FROM results r
-    JOIN users u ON r.student_id = u.id
-    JOIN batches b ON r.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    FROM result r
+    JOIN users u ON r.student_id = u.userID
+    JOIN batch b ON r.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     WHERE 1=1 $where_batch
     ORDER BY r.exam_date DESC
 ");
 
 // Top 5 students by average score (with optional batch filter)
 $top_students = mysqli_query($conn, "
-    SELECT u.full_name, ROUND(AVG(r.marks),1) AS avg_score, COUNT(r.id) AS exams
-    FROM results r
-    JOIN users u ON r.student_id = u.id
+    SELECT u.full_name, ROUND(AVG(r.marks),1) AS avg_score, COUNT(r.resultID) AS exams
+    FROM result r
+    JOIN users u ON r.student_id = u.userID
     WHERE 1=1 $where_batch
     GROUP BY r.student_id
     ORDER BY avg_score DESC
@@ -44,19 +44,19 @@ $top_students = mysqli_query($conn, "
 // Attendance summary per batch
 $attendance = mysqli_query($conn, "
     SELECT b.batch_name, s.name AS subject_name,
-        COUNT(a.id) AS total,
+        COUNT(a.attendanceID) AS total,
         SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,
         SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,
         SUM(CASE WHEN a.status='late'    THEN 1 ELSE 0 END) AS late
     FROM attendance a
-    JOIN batches b ON a.batch_id = b.id
-    JOIN subjects s ON b.subject_id = s.id
+    JOIN batch b ON a.batch_id = b.batchID
+    JOIN subject s ON b.subject_id = s.subjectID
     GROUP BY a.batch_id
     ORDER BY b.batch_name
 ");
 
 // Grade distribution — count how many A, B, C, F grades exist
-$grade_dist = mysqli_query($conn, "SELECT grade, COUNT(*) AS cnt FROM results WHERE grade IS NOT NULL GROUP BY grade ORDER BY grade");
+$grade_dist = mysqli_query($conn, "SELECT grade, COUNT(*) AS cnt FROM result WHERE grade IS NOT NULL GROUP BY grade ORDER BY grade");
 $grade_data = [];
 while ($gd = mysqli_fetch_assoc($grade_dist)) {
     $grade_data[$gd['grade']] = $gd['cnt'];
@@ -64,8 +64,8 @@ while ($gd = mysqli_fetch_assoc($grade_dist)) {
 $total_graded = array_sum($grade_data);
 
 // Pass rate — marks >= 50 considered pass
-$pass_row  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM results WHERE marks >= 50"));
-$fail_row  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM results WHERE marks < 50"));
+$pass_row  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM result WHERE marks >= 50"));
+$fail_row  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) AS cnt FROM result WHERE marks < 50"));
 $total_res = ($pass_row['cnt'] ?? 0) + ($fail_row['cnt'] ?? 0);
 $pass_pct  = $total_res > 0 ? round(($pass_row['cnt'] / $total_res) * 100) : 0;
 
@@ -101,7 +101,7 @@ include '../../frontend/assets/header.php';
                 <select name="batch_id">
                     <option value="0">All Batches</option>
                     <?php while ($bd = mysqli_fetch_assoc($batches_dd)): ?>
-                        <option value="<?php echo $bd['id']; ?>" <?php if ($filter_batch == $bd['id']) echo 'selected'; ?>>
+                        <option value="<?php echo $bd['batchID']; ?>" <?php if ($filter_batch == $bd['batchID']) echo 'selected'; ?>>
                             <?php echo htmlspecialchars($bd['batch_name']); ?> – <?php echo htmlspecialchars($bd['subject_name']); ?>
                         </option>
                     <?php endwhile; ?>

@@ -7,14 +7,14 @@ session_start();
 require '../../backend/config/db.php';
 
 // Get all subjects
-$subjects = mysqli_query($conn, "SELECT * FROM subjects ORDER BY name");
+$subjects = mysqli_query($conn, "SELECT * FROM subject ORDER BY name");
 
 // Get all batches with subject and lecturer names
 $batches = mysqli_query($conn, "
     SELECT b.*, s.name AS subject_name, u.full_name AS lecturer_name
-    FROM batches b
-    JOIN subjects s ON b.subject_id = s.id
-    JOIN users u ON b.lecturer_id = u.id
+    FROM batch b
+    JOIN subject s ON b.subject_id = s.subjectID
+    JOIN users u ON b.lecturer_id = u.userID
     ORDER BY b.status DESC, b.batch_name
 ");
 
@@ -45,7 +45,7 @@ include '../../frontend/assets/header.php';
             <tbody>
             <?php if ($batches && mysqli_num_rows($batches) > 0):
                 while ($b = mysqli_fetch_assoc($batches)):
-                    $enrolled = $enroll_counts[$b['id']] ?? 0;
+                    $enrolled = $enroll_counts[$b['batchID']] ?? 0;
                     $badge    = $b['status'] == 'active' ? 'badge-green' : ($b['status'] == 'upcoming' ? 'badge-yellow' : 'badge-gray');
             ?>
                 <tr>

@@ -48,12 +48,16 @@ $id = (int)($_GET['id'] ?? 0);
 // ------------------------------------------------------------
 // DELETE SUBJECT
 // ------------------------------------------------------------
-// Only execute delete if ID is valid
+// Only execute delete if ID is valid.
+// NOTE: batches.subject_id is ON DELETE RESTRICT, so this query
+// will FAIL (return false) if any batch still uses this subject.
+// We check the result instead of assuming success.
+$delete_ok = false;
 if ($id > 0) {
 
-    mysqli_query(
+    $delete_ok = mysqli_query(
         $conn,
-        "DELETE FROM subjects WHERE id=$id"
+        "DELETE FROM subject WHERE subjectID=$id"
     );
 }
 
@@ -61,10 +65,19 @@ if ($id > 0) {
 // ------------------------------------------------------------
 // REDIRECT USER
 // ------------------------------------------------------------
-// After deletion, return to dashboard
-header(
-    "Location: ../../../frontend/pages/dashboard.php?msg=Subject+deleted"
-);
+if ($delete_ok) {
+    header(
+        "Location: ../../../frontend/pages/dashboard.php?msg=Subject+deleted"
+    );
+} else {
+    // Blocked, most likely because one or more batches still use
+    // this subject (ON DELETE RESTRICT). Remove or reassign those
+    // batches first.
+    header(
+        "Location: ../../../frontend/pages/dashboard.php?msg=" .
+        urlencode("Cannot delete: one or more batches still use this subject. Remove or reassign those batches first.")
+    );
+}
 
 
 // Stop script execution
@@ -123,7 +136,7 @@ in_array()
 SQL QUERY
 ============================================================
 
-DELETE FROM subjects WHERE id=5;
+DELETE FROM subject WHERE subjectID=5;
 
 Purpose:
 Removes subject permanently from system

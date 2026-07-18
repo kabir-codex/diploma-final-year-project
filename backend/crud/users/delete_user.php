@@ -58,12 +58,17 @@ if ($id == $_SESSION['user_id']) {
 // ------------------------------------------------------------
 // DELETE USER
 // ------------------------------------------------------------
-// Only runs if valid ID is provided
+// Only runs if valid ID is provided.
+// NOTE: batches.lecturer_id is ON DELETE RESTRICT, so this query
+// will FAIL (return false) if this user is a lecturer still
+// assigned to one or more batches. We check the result instead of
+// assuming success, so the message shown always matches reality.
+$delete_ok = false;
 if ($id > 0) {
 
-    mysqli_query(
+    $delete_ok = mysqli_query(
         $conn,
-        "DELETE FROM users WHERE id=$id"
+        "DELETE FROM users WHERE userID=$id"
     );
 }
 
@@ -71,9 +76,19 @@ if ($id > 0) {
 // ------------------------------------------------------------
 // REDIRECT AFTER DELETE
 // ------------------------------------------------------------
-header(
-    "Location: ../../../frontend/pages/dashboard.php?msg=User+deleted"
-);
+if ($delete_ok) {
+    header(
+        "Location: ../../../frontend/pages/dashboard.php?msg=User+deleted"
+    );
+} else {
+    // Blocked, most likely because this lecturer still has batches
+    // assigned to them (ON DELETE RESTRICT). Deactivate the account
+    // instead, or reassign/remove their batches first.
+    header(
+        "Location: ../../../frontend/pages/dashboard.php?msg=" .
+        urlencode("Cannot delete: this user still has batches or records linked to them. Set their status to Inactive instead, or reassign their batches first.")
+    );
+}
 
 
 // Stop script execution
@@ -126,7 +141,7 @@ isset()
 SQL QUERY
 ============================================================
 
-DELETE FROM users WHERE id=5;
+DELETE FROM users WHERE userID=5;
 
 Purpose:
 Removes user from system permanently

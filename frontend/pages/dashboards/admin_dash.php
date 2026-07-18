@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['link_parent'])) {
     if (!$lp_parent_id || !$lp_student_id) {
         $link_parent_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please select both a parent and a student.</div>"; // Required fields check
     } else {
-        $chk = mysqli_query($conn, "SELECT id FROM parent_student WHERE parent_id=$lp_parent_id AND student_id=$lp_student_id"); // Check this exact pair isn't already linked
+        $chk = mysqli_query($conn, "SELECT parentStudentID FROM parent_student WHERE parent_id=$lp_parent_id AND student_id=$lp_student_id"); // Check this exact pair isn't already linked
         if (mysqli_num_rows($chk) > 0) {
             $link_parent_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ This parent is already linked to that student.</div>"; // Avoid duplicate links
         } else {
@@ -26,12 +26,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['link_parent'])) {
 // ----- COUNT STATS FOR THE OVERVIEW CARDS -----
 $cnt_students  = count_rows($conn, 'users',    "role='student'");    // Total student accounts
 $cnt_lecturers = count_rows($conn, 'users',    "role='lecturer'");   // Total lecturer accounts
-$cnt_batches   = count_rows($conn, 'batches',  "status='active'");   // Currently active batches
-$cnt_pending   = count_rows($conn, 'payments', "status='pending'");  // Payments awaiting approval
+$cnt_batches   = count_rows($conn, 'batch',    "status='active'");   // Currently active batches
+$cnt_pending   = count_rows($conn, 'payment',  "status='pending'");  // Payments awaiting approval
 $cnt_enquiries = count_rows($conn, 'enquiries', "status='pending'"); // Enquiries not yet followed up on
 
 // Calculate total approved revenue
-$rev = get_one_row($conn, "SELECT SUM(amount) AS total FROM payments WHERE status='approved'"); // Sum of every approved payment
+$rev = get_one_row($conn, "SELECT SUM(amount) AS total FROM payment WHERE status='approved'"); // Sum of every approved payment
 $total_revenue = $rev ? (float)$rev['total'] : 0; // Falls back to 0 if there are no approved payments at all yet
 
 // ----- LOAD DATA FOR EACH SECTION -----
@@ -40,31 +40,31 @@ $total_revenue = $rev ? (float)$rev['total'] : 0; // Falls back to 0 if there ar
 $users = mysqli_query($conn, "SELECT * FROM users ORDER BY role, full_name"); // Grouped by role, alphabetical within each role
 
 // All subjects
-$subjects = mysqli_query($conn, "SELECT * FROM subjects ORDER BY name");
+$subjects = mysqli_query($conn, "SELECT * FROM subject ORDER BY name");
 
 // All batches with subject name and lecturer name (joined)
 $batches = mysqli_query($conn, "
     SELECT b.*, s.name AS subject_name, u.full_name AS lecturer_name
-    FROM batches b
-    JOIN subjects s ON b.subject_id = s.id
-    JOIN users u ON b.lecturer_id = u.id
+    FROM batch b
+    JOIN subject s ON b.subject_id = s.subjectID
+    JOIN users u ON b.lecturer_id = u.userID
     ORDER BY b.batch_name
 ");
 
 // All payments with student and batch info (joined)
 $payments = mysqli_query($conn, "
     SELECT p.*, u.full_name AS student_name, b.batch_name
-    FROM payments p
-    JOIN users u ON p.student_id = u.id
-    JOIN batches b ON p.batch_id = b.id
-    ORDER BY p.id DESC
+    FROM payment p
+    JOIN users u ON p.student_id = u.userID
+    JOIN batch b ON p.batch_id = b.batchID
+    ORDER BY p.paymentID DESC
 ");
 
 // All announcements with who posted them
 $announcements = mysqli_query($conn, "
     SELECT a.*, u.full_name AS posted_by_name
-    FROM announcements a
-    LEFT JOIN users u ON a.posted_by = u.id
+    FROM announcement a
+    LEFT JOIN users u ON a.posted_by = u.userID
     ORDER BY a.created_at DESC
 "); // LEFT JOIN so an announcement still shows even if its poster's account was later deleted
 
@@ -133,7 +133,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                     <?php if ($users && mysqli_num_rows($users) > 0): ?>
                         <?php while ($u = mysqli_fetch_assoc($users)): ?>
                         <tr>
-                            <td><?php echo $u['id']; ?></td>
+                            <td><?php echo $u['userID']; ?></td>
                             <td><?php echo $u['username']; ?></td>
                             <td><?php echo $u['full_name']; ?></td>
                             <td><span class="badge badge-blue"><?php echo $u['role']; ?></span></td>
@@ -144,8 +144,8 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                                 </span>
                             </td>
                             <td>
-                                <a href="../../backend/crud/users/edit_user.php?id=<?php echo $u['id']; ?>" class="btn btn-small btn-primary">Edit</a>
-                                <a href="../../backend/crud/users/delete_user.php?id=<?php echo $u['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete this user?');">Delete</a>
+                                <a href="../../backend/crud/users/edit_user.php?id=<?php echo $u['userID']; ?>" class="btn btn-small btn-primary">Edit</a>
+                                <a href="../../backend/crud/users/delete_user.php?id=<?php echo $u['userID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete this user?');">Delete</a>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -176,8 +176,8 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             <td><?php echo $s['level']; ?></td>
                             <td><?php echo number_format($s['fee'], 2); ?></td>
                             <td>
-                                <a href="../../backend/crud/subjects/edit_subject.php?id=<?php echo $s['id']; ?>" class="btn btn-small btn-primary">Edit</a>
-                                <a href="../../backend/crud/subjects/delete_subject.php?id=<?php echo $s['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete subject?');">Delete</a>
+                                <a href="../../backend/crud/subjects/edit_subject.php?id=<?php echo $s['subjectID']; ?>" class="btn btn-small btn-primary">Edit</a>
+                                <a href="../../backend/crud/subjects/delete_subject.php?id=<?php echo $s['subjectID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete subject?');">Delete</a>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -212,8 +212,8 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             <td><?php echo $b['capacity']; ?></td>
                             <td><span class="badge <?php echo $badge; ?>"><?php echo ucfirst($b['status']); ?></span></td>
                             <td>
-                                <a href="../../backend/crud/batches/edit_batch.php?id=<?php echo $b['id']; ?>" class="btn btn-small btn-primary">Edit</a>
-                                <a href="../../backend/crud/batches/delete_batch.php?id=<?php echo $b['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete batch?');">Delete</a>
+                                <a href="../../backend/crud/batches/edit_batch.php?id=<?php echo $b['batchID']; ?>" class="btn btn-small btn-primary">Edit</a>
+                                <a href="../../backend/crud/batches/delete_batch.php?id=<?php echo $b['batchID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete batch?');">Delete</a>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -271,7 +271,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             <td style="white-space:nowrap;">
                                 <!-- Inline form to change status to any value -->
                                 <form method="POST" action="../../backend/crud/payments/update_payment.php" style="display:inline-flex; gap:4px; align-items:center; margin-bottom:4px;">
-                                    <input type="hidden" name="pay_id" value="<?php echo $p['id']; ?>">
+                                    <input type="hidden" name="pay_id" value="<?php echo $p['paymentID']; ?>">
                                     <select name="new_status" style="font-size:.78rem; padding:3px 6px; border-radius:5px; border:1px solid #cbd5e1;">
                                         <option value="pending"  <?php if ($p['status']=='pending')  echo 'selected'; ?>>Pending</option>
                                         <option value="approved" <?php if ($p['status']=='approved') echo 'selected'; ?>>Approved</option>
@@ -282,14 +282,14 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                                 </form>
                                 <br>
                                 <!-- Delete button -->
-                                <a href="../../backend/crud/payments/delete_payment.php?id=<?php echo $p['id']; ?>"
+                                <a href="../../backend/crud/payments/delete_payment.php?id=<?php echo $p['paymentID']; ?>"
                                    class="btn btn-small btn-red"
                                    onclick="return confirm('Delete this payment record permanently?');">
                                     🗑️ Delete
                                 </a>
                                 <!-- Print receipt (only for approved) -->
                                 <?php if ($p['status'] == 'approved'): ?>
-                                    <a href="print_receipt.php?id=<?php echo $p['id']; ?>" target="_blank" class="btn btn-small btn-green" style="margin-left:2px;">🖨️</a>
+                                    <a href="print_receipt.php?id=<?php echo $p['paymentID']; ?>" target="_blank" class="btn btn-small btn-green" style="margin-left:2px;">🖨️</a>
                                     <!-- Only meaningful once a payment is approved -->
                                 <?php endif; ?>
                             </td>
@@ -323,8 +323,8 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             <!-- Falls back to an em-dash if the poster's account was deleted -->
                             <td><?php echo $a['post_date']; ?></td>
                             <td>
-                                <a href="../../backend/crud/announcements/edit_announcement.php?id=<?php echo $a['id']; ?>" class="btn btn-small btn-primary">Edit</a>
-                                <a href="../../backend/crud/announcements/delete_announcement.php?id=<?php echo $a['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
+                                <a href="../../backend/crud/announcements/edit_announcement.php?id=<?php echo $a['announcementID']; ?>" class="btn btn-small btn-primary">Edit</a>
+                                <a href="../../backend/crud/announcements/delete_announcement.php?id=<?php echo $a['announcementID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -355,8 +355,8 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                             <td><?php echo date('d M Y', strtotime($e['created_at'])); ?></td>
                             <td><span class="badge <?php echo $eb; ?>"><?php echo ucfirst($e['status']); ?></span></td>
                             <td>
-                                <a href="../../backend/crud/enquiries/edit_enquiry.php?id=<?php echo $e['id']; ?>" class="btn btn-small btn-primary">Update</a>
-                                <a href="../../backend/crud/enquiries/delete_enquiry.php?id=<?php echo $e['id']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
+                                <a href="../../backend/crud/enquiries/edit_enquiry.php?id=<?php echo $e['enquiryID']; ?>" class="btn btn-small btn-primary">Update</a>
+                                <a href="../../backend/crud/enquiries/delete_enquiry.php?id=<?php echo $e['enquiryID']; ?>" class="btn btn-small btn-red" onclick="return confirm('Delete?');">Delete</a>
                             </td>
                         </tr>
                         <?php endwhile; ?>
@@ -381,9 +381,9 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                         <label>Select Parent *</label>
                         <select name="lp_parent_id" required>
                             <option value="">-- Select Parent --</option>
-                            <?php $parents = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='parent' ORDER BY full_name"); // Fresh query on every page load, so newly added parents show up immediately
+                            <?php $parents = mysqli_query($conn, "SELECT userID, full_name FROM users WHERE role='parent' ORDER BY full_name"); // Fresh query on every page load, so newly added parents show up immediately
                             while ($p = mysqli_fetch_assoc($parents)): ?>
-                                <option value="<?php echo $p['id']; ?>"><?php echo htmlspecialchars($p['full_name']); ?></option>
+                                <option value="<?php echo $p['userID']; ?>"><?php echo htmlspecialchars($p['full_name']); ?></option>
                                 <!-- One option per parent account in the system -->
                             <?php endwhile; ?>
                         </select>
@@ -392,9 +392,9 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                         <label>Select Student (Child) *</label>
                         <select name="lp_student_id" required>
                             <option value="">-- Select Student --</option>
-                            <?php $stu_lp = mysqli_query($conn, "SELECT id, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query on every page load, so newly added students show up immediately
+                            <?php $stu_lp = mysqli_query($conn, "SELECT userID, full_name FROM users WHERE role='student' ORDER BY full_name"); // Fresh query on every page load, so newly added students show up immediately
                             while ($s = mysqli_fetch_assoc($stu_lp)): ?>
-                                <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
+                                <option value="<?php echo $s['userID']; ?>"><?php echo htmlspecialchars($s['full_name']); ?></option>
                                 <!-- One option per student account in the system -->
                             <?php endwhile; ?>
                         </select>
@@ -410,12 +410,12 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                 <tbody>
                 <?php
                 $all_links = mysqli_query($conn, "
-                    SELECT ps.id,
+                    SELECT ps.parentStudentID,
                         p.full_name AS parent_name,
                         s.full_name AS student_name
                     FROM parent_student ps
-                    JOIN users p ON ps.parent_id  = p.id
-                    JOIN users s ON ps.student_id = s.id
+                    JOIN users p ON ps.parent_id  = p.userID
+                    JOIN users s ON ps.student_id = s.userID
                     ORDER BY p.full_name
                 "); // Every existing parent-student link, with names resolved via joins
                 if ($all_links && mysqli_num_rows($all_links) > 0):
@@ -424,7 +424,7 @@ $enquiries = mysqli_query($conn, "SELECT * FROM enquiries ORDER BY created_at DE
                         <td><?php echo htmlspecialchars($lnk['parent_name']); ?></td>
                         <td><?php echo htmlspecialchars($lnk['student_name']); ?></td>
                         <td>
-                            <a href="dashboard.php?unlink_id=<?php echo $lnk['id']; ?>#link_parent"
+                            <a href="dashboard.php?unlink_id=<?php echo $lnk['parentStudentID']; ?>#link_parent"
                                class="btn btn-small btn-red"
                                onclick="return confirm('Remove this parent-student link?');">
                                🗑️ Unlink

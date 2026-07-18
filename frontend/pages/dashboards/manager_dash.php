@@ -7,54 +7,54 @@
 
 $cnt_students  = count_rows($conn, 'users',   "role='student'");   // Total student accounts
 $cnt_lecturers = count_rows($conn, 'users',   "role='lecturer'");  // Total lecturer accounts
-$cnt_batches   = count_rows($conn, 'batches', "status='active'");  // Currently active batches
-$rev           = get_one_row($conn, "SELECT SUM(amount) AS total FROM payments WHERE status='approved'"); // Sum of every approved payment
+$cnt_batches   = count_rows($conn, 'batch', "status='active'");  // Currently active batches
+$rev           = get_one_row($conn, "SELECT SUM(amount) AS total FROM payment WHERE status='approved'"); // Sum of every approved payment
 $total_revenue = $rev ? (float)$rev['total'] : 0; // Falls back to 0 if there are no approved payments yet
 
 // Batches with enrollment count and attendance %
 $batches = mysqli_query($conn, "
     SELECT b.*, s.name AS subject_name, u.full_name AS lecturer_name,
-        (SELECT COUNT(*) FROM enrollments e WHERE e.batch_id = b.id AND e.status = 'active') AS enrolled,
-        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.id AND a.status = 'present') AS present_count,
-        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.id) AS total_att
-    FROM batches b
-    JOIN subjects s ON b.subject_id = s.id
-    JOIN users u ON b.lecturer_id = u.id
+        (SELECT COUNT(*) FROM enrollments e WHERE e.batch_id = b.batchID AND e.status = 'active') AS enrolled,
+        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.batchID AND a.status = 'present') AS present_count,
+        (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.batchID) AS total_att
+    FROM batch b
+    JOIN subject s ON b.subject_id = s.subjectID
+    JOIN users u ON b.lecturer_id = u.userID
     ORDER BY b.status DESC, b.batch_name
 "); // Each metric is its own subquery, keeping the main query straightforward to read
 
 // All students with how many batches they are in
 $students = mysqli_query($conn, "
-    SELECT u.id, u.full_name, u.email, u.phone, u.status,
-        COUNT(DISTINCT e.id) AS batch_count
+    SELECT u.userID, u.full_name, u.email, u.phone, u.status,
+        COUNT(DISTINCT e.enrollmentID) AS batch_count
     FROM users u
-    LEFT JOIN enrollments e ON u.id = e.student_id AND e.status = 'active'
+    LEFT JOIN enrollments e ON u.userID = e.student_id AND e.status = 'active'
     WHERE u.role = 'student'
-    GROUP BY u.id
+    GROUP BY u.userID
     ORDER BY u.full_name
 "); // LEFT JOIN so students with zero active enrollments still show up (with batch_count = 0)
 
 // All lecturers with their batch count
 $lecturers = mysqli_query($conn, "
-    SELECT u.id, u.full_name, u.email, u.phone, u.status,
-        COUNT(DISTINCT b.id) AS batch_count
+    SELECT u.userID, u.full_name, u.email, u.phone, u.status,
+        COUNT(DISTINCT b.batchID) AS batch_count
     FROM users u
-    LEFT JOIN batches b ON u.id = b.lecturer_id AND b.status = 'active'
+    LEFT JOIN batch b ON u.userID = b.lecturer_id AND b.status = 'active'
     WHERE u.role = 'lecturer'
-    GROUP BY u.id
+    GROUP BY u.userID
     ORDER BY u.full_name
 "); // LEFT JOIN so lecturers with zero active batches still show up (with batch_count = 0)
 
 // Attendance summary per student per batch
 $attendance = mysqli_query($conn, "
     SELECT b.batch_name, u.full_name AS student_name,
-        COUNT(a.id) AS total_classes,
+        COUNT(a.attendanceID) AS total_classes,
         SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) AS present_count,
         SUM(CASE WHEN a.status = 'absent'  THEN 1 ELSE 0 END) AS absent_count,
         SUM(CASE WHEN a.status = 'late'    THEN 1 ELSE 0 END) AS late_count
     FROM attendance a
-    JOIN users u ON a.student_id = u.id
-    JOIN batches b ON a.batch_id = b.id
+    JOIN users u ON a.student_id = u.userID
+    JOIN batch b ON a.batch_id = b.batchID
     GROUP BY a.student_id, a.batch_id
     ORDER BY b.batch_name, u.full_name
 "); // One row per student per batch they have attendance records for
@@ -62,16 +62,16 @@ $attendance = mysqli_query($conn, "
 // Student performance summary
 $performance = mysqli_query($conn, "
     SELECT u.full_name, b.batch_name, s.name AS subject_name,
-        COUNT(r.id) AS exam_count,
+        COUNT(r.resultID) AS exam_count,
         ROUND(AVG(r.marks), 1) AS avg_marks,
         MAX(r.marks) AS best_marks,
         MIN(r.marks) AS lowest_marks
     FROM users u
-    LEFT JOIN results r ON u.id = r.student_id
-    LEFT JOIN batches b ON r.batch_id = b.id
-    LEFT JOIN subjects s ON b.subject_id = s.id
+    LEFT JOIN result r ON u.userID = r.student_id
+    LEFT JOIN batch b ON r.batch_id = b.batchID
+    LEFT JOIN subject s ON b.subject_id = s.subjectID
     WHERE u.role = 'student'
-    GROUP BY u.id, r.batch_id
+    GROUP BY u.userID, r.batch_id
     HAVING exam_count > 0
     ORDER BY avg_marks DESC
 "); // HAVING exam_count > 0 excludes students who haven't sat any exams yet for a given batch
@@ -79,7 +79,7 @@ $performance = mysqli_query($conn, "
 // Revenue by month and status
 $revenue = mysqli_query($conn, "
     SELECT pay_month, SUM(amount) AS total, status
-    FROM payments
+    FROM payment
     GROUP BY pay_month, status
     ORDER BY pay_month DESC
     LIMIT 12
