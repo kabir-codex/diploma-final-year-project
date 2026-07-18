@@ -33,24 +33,30 @@ function get_one_row($conn, $sql) {
 // Check if a user is logged in
 // If not logged in, redirect them to the login page
 function require_login() {
-    if (!isset($_SESSION['user_id'])) {
-        header("Location: /activate_academy/frontend/pages/login.php");
-        exit();
+    if (!isset($_SESSION['user_id'])) {                                     // isset() checks if $_SESSION['user_id'] exists at all
+        header("Location: /activate_academy/frontend/pages/login.php");      // header("Location: ...") tells the BROWSER to redirect to the login page
+        exit();                                                             // exit() stops the script immediately
     }
 }
 
 // Check if the logged-in user has one of the allowed roles
 // Example: require_role(['admin', 'manager'])
 function require_role($allowed_roles) {
-    require_login();
-    if (!in_array($_SESSION['role'], $allowed_roles)) {
+    require_login();                                             // Step 1: must be logged in at all (reuses Function 3 above)
+    if (!in_array($_SESSION['role'], $allowed_roles)) {              // Step 2: in_array() checks if the current user's role
+                                                                      // is inside the list of roles that are allowed to see this page
+                                                       
         header("Location: /activate_academy/frontend/pages/login.php");
         exit();
     }
+    // If we get here, user is logged in AND has permission
 }
 
 // Show a success message box (green)
 function success_msg($text) {
+
+    // Just returns a ready-made HTML <div> string with inline CSS styling
+    // $text gets inserted directly into the string ("string interpolation")
     return "<div style='background:#dcfce7; color:#166534; padding:12px; border-radius:8px; margin-bottom:16px;'>✅ $text</div>";
 }
 
