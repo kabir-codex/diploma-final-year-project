@@ -23,6 +23,19 @@ require '../../config/db.php';
 
 
 // ------------------------------------------------------------
+// FEATURE DISABLED (ADMIN ONLY): Payment Approval & Management
+// ------------------------------------------------------------
+// The admin panel's payment management feature is temporarily
+// turned off, so admin is blocked here even via a direct URL.
+// Receptionist and manager are NOT affected. To re-enable for
+// admin: delete this block.
+if (isset($_SESSION['user_id']) && $_SESSION['role'] === 'admin') {
+    header("Location: ../../../frontend/pages/dashboard.php?msg=" . urlencode("This feature is currently disabled."));
+    exit();
+}
+
+
+// ------------------------------------------------------------
 // AUTHORIZATION CHECK
 // ------------------------------------------------------------
 // Only these roles can approve/reject payments:

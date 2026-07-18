@@ -24,6 +24,19 @@ require '../../config/db.php';
 
 
 // ------------------------------------------------------------
+// FEATURE DISABLED: Payment Approval & Management
+// ------------------------------------------------------------
+// This whole feature is temporarily turned off in the Admin Portal.
+// This file is only ever used by that feature (no other page links
+// here), so it's safe to block entirely rather than deleting anything.
+// To re-enable: delete this block.
+if (isset($_SESSION['user_id'])) {
+    header("Location: ../../../frontend/pages/dashboard.php?msg=" . urlencode("This feature is currently disabled."));
+    exit();
+}
+
+
+// ------------------------------------------------------------
 // AUTHORIZATION CHECK
 // ------------------------------------------------------------
 // Only these roles can update payment status:
