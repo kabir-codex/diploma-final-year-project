@@ -541,7 +541,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                 <!-- Comes from delete_payment.php's redirect -->
             <?php endif; ?>
             <div class="table-wrapper"><table>
-                <thead><tr><th>Receipt No</th><th>Student</th><th>Batch</th><th>Month</th><th>Amount (LKR)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Receipt No</th><th>Receipt</th><th>Student</th><th>Batch</th><th>Month</th><th>Amount (LKR)</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                 <?php if ($pay_history && mysqli_num_rows($pay_history) > 0):
                     while ($ph = mysqli_fetch_assoc($pay_history)):
@@ -549,6 +549,25 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                 ?>
                     <tr>
                         <td style="font-weight:600; font-size:.85rem;"><?php echo htmlspecialchars($ph['receipt_no'] ?: '—'); ?></td>
+                        <td>
+                            <?php if (!empty($ph['receipt_file'])):
+                                // Show a small clickable image preview for image files,
+                                // otherwise just a plain View/Download link (e.g. PDF).
+                                $receipt_ext = strtolower(pathinfo($ph['receipt_file'], PATHINFO_EXTENSION));
+                                $is_image    = in_array($receipt_ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                            ?>
+                                <?php if ($is_image): ?>
+                                    <a href="../../uploads/receipts/<?php echo $ph['receipt_file']; ?>" target="_blank">
+                                        <img src="../../uploads/receipts/<?php echo $ph['receipt_file']; ?>" alt="Receipt" style="width:48px; height:48px; object-fit:cover; border-radius:6px; border:1px solid #cbd5e1;">
+                                    </a>
+                                <?php else: ?>
+                                    <a href="../../uploads/receipts/<?php echo $ph['receipt_file']; ?>" target="_blank" style="color:#2563eb; font-size:0.78rem;">📎 View</a>
+                                <?php endif; ?>
+                                <!-- Only shown if the student actually uploaded a receipt file -->
+                            <?php else: ?>
+                                <span style="color:#94a3b8; font-size:0.78rem;">No file</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo htmlspecialchars($ph['student_name']); ?></td>
                         <td style="font-size:.85rem;"><?php echo htmlspecialchars($ph['batch_name']); ?></td>
                         <td><?php echo htmlspecialchars($ph['pay_month']); ?></td>
@@ -580,7 +599,7 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                         </td>
                     </tr>
                 <?php endwhile; else: ?>
-                    <tr><td colspan="8" style="text-align:center; color:#64748b;">No payment records yet.</td></tr>
+                    <tr><td colspan="9" style="text-align:center; color:#64748b;">No payment records yet.</td></tr>
                 <?php endif; ?>
                 <!-- One row per payment, capped at the most recent 40 by the query above -->
                 </tbody>
