@@ -5,7 +5,8 @@
 //  attendance, performance points, payments, announcements.
 // ============================================================
 
-// Get the child linked to this parent
+// --- Step 1: find WHICH student this parent is linked to ---
+// parent_student is a linking table connecting a parent's userID to their child's userID
 $child_link  = get_one_row($conn, "SELECT student_id FROM parent_student WHERE parent_id = $user_id LIMIT 1"); // A parent could theoretically have multiple children, but this dashboard only shows the first linked one
 $child_id    = $child_link ? (int)$child_link['student_id'] : 0;     // 0 means "no child linked yet"
 $child_info  = $child_id ? get_one_row($conn, "SELECT * FROM users WHERE userID = $child_id") : null; // The child's user account
@@ -19,51 +20,56 @@ $batch_ids_str = empty($child_batch_ids) ? '0' : implode(',', $child_batch_ids);
 
 // Child's batches
 $child_batches = mysqli_query($conn, "
-    SELECT b.*, s.name AS subject_name, u.full_name AS lecturer_name
-    FROM enrollments e
-    JOIN batch b ON e.batch_id = b.batchID
-    JOIN subject s ON b.subject_id = s.subjectID
-    JOIN users u ON b.lecturer_id = u.userID
-    WHERE e.student_id = $child_id AND e.status = 'active'
+SELECT b.*, s.name AS subject_name, u.full_name AS lecturer_name
+FROM enrollments e
+JOIN batch b ON e.batch_id = b.batchID        -- match each enrollment to its actual batch
+JOIN subject s ON b.subject_id = s.subjectID  -- get the subject name for that batch
+JOIN users u ON b.lecturer_id = u.userID      -- get the lecturer's name for that batch
+WHERE e.student_id = $child_id                -- only batches THIS child is enrolled in
+  AND e.status = 'active'                     -- only currently-active enrollments
 ");
 
-// Child's exam results
+// The child's exam results, newest first
 $child_results = mysqli_query($conn, "
-    SELECT r.*, b.batch_name, s.name AS subject_name
-    FROM result r
-    JOIN batch b ON r.batch_id = b.batchID
-    JOIN subject s ON b.subject_id = s.subjectID
-    WHERE r.student_id = $child_id
-    ORDER BY r.exam_date DESC
+SELECT r.*, b.batch_name, s.name AS subject_name
+FROM result r
+JOIN batch b ON r.batch_id = b.batchID         -- attach batch name to each result
+JOIN subject s ON b.subject_id = s.subjectID   -- attach subject name via the batch
+WHERE r.student_id = $child_id                 -- only this child's results
+ORDER BY r.exam_date DESC                      -- most recent exam shown first
 ");
 
-// Child's attendance summary
+// Attendance, summarised into present/absent/late counts PER BATCH
 $child_attendance = mysqli_query($conn, "
-    SELECT b.batch_name, s.name AS subject_name,
-        COUNT(a.attendanceID) AS total,
-        SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,
-        SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,
-        SUM(CASE WHEN a.status='late'    THEN 1 ELSE 0 END) AS late
-    FROM attendance a
-    JOIN batch b ON a.batch_id = b.batchID
-    JOIN subject s ON b.subject_id = s.subjectID
-    WHERE a.student_id = $child_id
-    GROUP BY a.batch_id
+SELECT b.batch_name, s.name AS subject_name,
+    COUNT(a.attendanceID) AS total,                                   -- total classes recorded for this batch
+    SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,   -- count only the 'present' rows
+    SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,    -- count only the 'absent' rows
+    SUM(CASE WHEN a.status='late'    THEN 1 ELSE 0 END) AS late       -- count only the 'late' rows
+FROM attendance a
+JOIN batch b ON a.batch_id = b.batchID         -- get the batch name
+JOIN subject s ON b.subject_id = s.subjectID   -- get the subject name via the batch
+WHERE a.student_id = $child_id                 -- only this child's attendance records
+GROUP BY a.batch_id                            -- one summary row PER batch, not per individual class
 ");
 
-// Child's performance points
-$pts_row     = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $child_id"); // Lifetime total across every award
+// Total performance points the child has ever earned + the full history list
+$pts_row     = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $child_id");   //add up every point award this child has ever received, across all batches
 $total_pts   = $pts_row ? (int)$pts_row['total'] : 0; // Falls back to 0 if the child has never been awarded points
 $child_pts   = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.userID LEFT JOIN batch b ON pp.batch_id=b.batchID WHERE pp.student_id=$child_id ORDER BY pp.performancePointID DESC");
 
 // Leaderboard: every student ranked by total performance points earned across all their batches
 $leaderboard_result = mysqli_query($conn, "
-    SELECT u.userID, u.full_name, COALESCE(SUM(pp.points), 0) AS total_points
-    FROM users u
-    LEFT JOIN performance_points pp ON pp.student_id = u.userID
-    WHERE u.role = 'student'
-    GROUP BY u.userID, u.full_name
-    ORDER BY total_points DESC, u.full_name ASC
+SELECT u.userID, u.full_name, 
+    COALESCE(SUM(pp.points), 0) AS total_points   -- add up all points per student; if none exist, show 0 instead of NULL
+FROM users u
+LEFT JOIN performance_points pp ON pp.student_id = u.userID   -- LEFT JOIN so students with ZERO points still appear (with 0)
+WHERE u.role = 'student'            -- only rank actual students, not staff/parents
+GROUP BY u.userID, u.full_name       -- one row per student, summing all their point records together
+ORDER BY total_points DESC,          -- highest scorer first
+         u.full_name ASC             -- if two students are tied, break the tie alphabetically by name
+
+         
 "); // Points from every batch a student attended count toward their rank, regardless of which lecturer awarded them
 $leaderboard_rows = []; // Plain array version, so it can be looped once for the table and reused to find the child's rank
 $child_rank       = 0;  // 0 means "not found" (e.g. no child linked yet)
@@ -75,23 +81,28 @@ while ($lb = mysqli_fetch_assoc($leaderboard_result)) {
     $lb_rank++;
 }
 
+// Why loop it manually into an array instead of using mysqli_num_rows() twice?
+// Because we need BOTH the child's exact rank AND the full table later in the HTML —
+// looping once and storing it avoids running the same query twice.
+
 // Child's payment history
 $child_payments = mysqli_query($conn, "
-    SELECT p.*, b.batch_name, s.name AS subject_name
-    FROM payment p
-    JOIN batch b ON p.batch_id = b.batchID
-    JOIN subject s ON b.subject_id = s.subjectID
-    WHERE p.student_id = $child_id
-    ORDER BY p.paymentID DESC
+SELECT p.*, b.batch_name, s.name AS subject_name
+FROM payment p
+JOIN batch b ON p.batch_id = b.batchID         -- get the batch this payment was for
+JOIN subject s ON b.subject_id = s.subjectID   -- get the subject name via the batch
+WHERE p.student_id = $child_id                 -- only this child's payments
+ORDER BY p.paymentID DESC                      -- most recent payment shown first
 ");
 
 // Announcements for all or parents
-$announcements = mysqli_query($conn, "
-    SELECT a.*, u.full_name AS posted_by_name
-    FROM announcement a
-    LEFT JOIN users u ON a.posted_by = u.userID
-    WHERE a.audience IN ('all', 'parents')
-    ORDER BY a.created_at DESC LIMIT 10
+$announcements = mysqli_query($conn, "    
+SELECT a.*, u.full_name AS posted_by_name
+FROM announcement a
+LEFT JOIN users u ON a.posted_by = u.userID   -- LEFT JOIN in case an announcement has no author recorded
+WHERE a.audience IN ('all', 'parents')         -- only show announcements meant for everyone or specifically parents
+ORDER BY a.created_at DESC                     -- newest announcement first
+LIMIT 10                                       -- cap it at the 10 most recent, don't overload the page
 "); // Only shows announcements meant for everyone or specifically for parents
 
 // Class links for child's batches
