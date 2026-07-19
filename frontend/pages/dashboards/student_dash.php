@@ -1,169 +1,214 @@
 <?php
 // ============================================================
 //  student_dash.php — Student Dashboard
-//  Students can: view their batches, results, attendance,
+//  Students can view their batches, results, attendance, points,
 //  payments, announcements, class links, and study materials.
-//  They can also upload payment receipts.
+//  They can also SUBMIT a payment (but not approve it themselves).
 // ============================================================
 
-// --- HANDLE PAYMENT UPLOAD ---
-$pay_msg = ''; // Will hold a success/error message after the form below is submitted
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_payment'])) {
-    $batch_id  = (int)$_POST['pay_batch_id'];                        // Which batch this payment is for
-    $amount    = (float)$_POST['pay_amount'];                        // How much was paid
-    $pay_month = mysqli_real_escape_string($conn, $_POST['pay_month']); // Which month this payment covers
-    $pay_date  = date('Y-m-d');                                       // Today's date
-    $rec_no    = 'STU-' . strtoupper(substr(md5(uniqid()), 0, 6));     // Random-looking receipt number, e.g. "STU-3F9A2B"
+// --- HANDLE PAYMENT UPLOAD (runs only if the payment form below was submitted) ---
+$pay_msg = ''; // will hold a success/error message shown after the form is submitted
 
-    // Handle file upload (optional receipt image)
-    $filename = ''; // Stays empty if no file was uploaded
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['submit_payment'])) {
+    // isset($_POST['submit_payment']) checks specifically for THIS form's submit button name,
+    // so this block doesn't accidentally run if some other form on the page was submitted
+
+    $batch_id  = (int)$_POST['pay_batch_id'];                          // force to a whole number — basic safety against junk input
+    $amount    = (float)$_POST['pay_amount'];                          // force to a decimal number
+    $pay_month = mysqli_real_escape_string($conn, $_POST['pay_month']); // escape text before using it in SQL
+    $pay_date  = date('Y-m-d');                                        // today's date, generated on the SERVER (never trust a date sent from the browser)
+    $rec_no    = 'STU-' . strtoupper(substr(md5(uniqid()), 0, 6));     
+    // uniqid() makes a string based on the current time (almost always unique),
+    // md5() scrambles it into a fixed-length hash,
+    // substr(...,0,6) keeps only the first 6 characters,
+    // strtoupper() makes it look neat — end result looks like "STU-3F9A2B"
+
+    // --- Handle the optional uploaded receipt file ---
+    $filename = ''; // stays blank if no file was attached
     if (isset($_FILES['receipt_file']) && $_FILES['receipt_file']['error'] == 0) {
-        $allowed    = ['jpg', 'jpeg', 'png', 'pdf'];                                          // Only these file types are accepted
-        $ext        = strtolower(pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION)); // The uploaded file's extension, lowercased
+        // $_FILES is PHP's superglobal holding info about any uploaded file
+        // error == 0 means "no upload errors happened"
+        $allowed = ['jpg', 'jpeg', 'png', 'pdf'];  // whitelist of acceptable file types
+        $ext = strtolower(pathinfo($_FILES['receipt_file']['name'], PATHINFO_EXTENSION)); 
+        // pathinfo(...) extracts just the extension part of the filename, e.g. "PNG" from "receipt.PNG"
+        // strtolower() normalises it to lowercase so "PNG" and "png" are treated the same
+
         if (in_array($ext, $allowed)) {
-            $filename = 'receipt_' . $user_id . '_' . time() . '.' . $ext; // Unique filename so receipts never overwrite each other
-            move_uploaded_file($_FILES['receipt_file']['tmp_name'], '../../uploads/receipts/' . $filename); // Actually move the file from PHP's temp location to the uploads folder
+            // only proceed if the extension is one of the allowed types — rejects things like .exe
+            $filename = 'receipt_' . $user_id . '_' . time() . '.' . $ext;
+            // builds a unique filename using the student's user_id + the current timestamp,
+            // so two different uploads never accidentally overwrite each other
+            move_uploaded_file($_FILES['receipt_file']['tmp_name'], '../../uploads/receipts/' . $filename);
+            // moves the file from PHP's temporary upload location into the real uploads/receipts folder
         }
     }
 
+    // --- Basic required-field validation ---
     if (!$batch_id || $amount <= 0 || empty($pay_month)) {
-        $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Batch, amount and month are required.</div>"; // Required fields check
+        $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Batch, amount and month are required.</div>";
     } else {
-        mysqli_query($conn, "INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, receipt_file, status) VALUES ($user_id, $batch_id, $amount, '$pay_month', '$rec_no', '$pay_date', '$filename', 'pending')"); // Save the payment, always starting as 'pending' until staff approve it
+        // --- Save the payment record — always starts as 'pending' ---
+        mysqli_query($conn, "INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, receipt_file, status) 
+                              VALUES ($user_id, $batch_id, $amount, '$pay_month', '$rec_no', '$pay_date', '$filename', 'pending')");
+        // status is hardcoded to 'pending' — a student can never set their own payment to 'approved'.
+        // Only staff (admin/receptionist) can change that, in a separate CRUD file.
         $pay_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Payment submitted for approval! Receipt: <strong>$rec_no</strong></div>";
     }
 }
 
-// --- LOAD DATA ---
+// ============================================================
+//  LOAD ALL THE DATA THIS PAGE WILL DISPLAY (queries run before any HTML)
+// ============================================================
 
-// Batches this student is enrolled in
+// --- The student's own active batches, with subject + lecturer names attached ---
 $my_batches = mysqli_query($conn, "
     SELECT e.enrollmentID AS enroll_id, b.*, s.name AS subject_name, u.full_name AS lecturer_name, e.status AS enroll_status
     FROM enrollments e
-    JOIN batch b ON e.batch_id = b.batchID
-    JOIN subject s ON b.subject_id = s.subjectID
-    JOIN users u ON b.lecturer_id = u.userID
-    WHERE e.student_id = $user_id AND e.status = 'active'
-    ORDER BY b.batch_name
+    JOIN batch b ON e.batch_id = b.batchID        -- get the batch's own details
+    JOIN subject s ON b.subject_id = s.subjectID  -- get the subject name via the batch
+    JOIN users u ON b.lecturer_id = u.userID      -- get the lecturer's name via the batch
+    WHERE e.student_id = $user_id                 -- only THIS student's enrollments
+      AND e.status = 'active'                     -- ignore dropped/completed ones
+    ORDER BY b.batch_name                          -- alphabetical order
 ");
 
-// Collect batch IDs as array for later queries
-$my_batch_ids = []; // Plain list of batch ids this student is enrolled in
-$batch_rows   = []; // Same data as an array of rows, so it can be looped multiple times in the HTML below
-$bk = mysqli_query($conn, "SELECT e.batch_id, b.batch_name, s.name AS subject_name FROM enrollments e JOIN batch b ON e.batch_id=b.batchID JOIN subject s ON b.subject_id=s.subjectID WHERE e.student_id=$user_id AND e.status='active'");
+// --- Same batch info again, but built into a plain PHP array for reuse elsewhere ---
+$my_batch_ids = []; // just the numeric IDs, e.g. [3, 7, 9]
+$batch_rows   = []; // the full rows, reused later to build the payment form's dropdown
+$bk = mysqli_query($conn, "
+    SELECT e.batch_id, b.batch_name, s.name AS subject_name 
+    FROM enrollments e 
+    JOIN batch b ON e.batch_id=b.batchID 
+    JOIN subject s ON b.subject_id=s.subjectID 
+    WHERE e.student_id=$user_id AND e.status='active'
+");
 while ($r = mysqli_fetch_assoc($bk)) {
-    $my_batch_ids[] = $r['batch_id'];
-    $batch_rows[]   = $r;
+    $my_batch_ids[] = $r['batch_id']; // collect just the ID
+    $batch_rows[]   = $r;             // collect the full row too
 }
-$batch_ids_str = empty($my_batch_ids) ? '0' : implode(',', $my_batch_ids); // Comma-joined string, ready to drop into an "IN (...)" SQL clause if ever needed
+// Turn the array of IDs into a comma-joined string like "3,7,9" —
+// ready to be dropped straight into an SQL "IN (...)" clause further down
+$batch_ids_str = empty($my_batch_ids) ? '0' : implode(',', $my_batch_ids);
+// if the student has zero batches, use '0' instead of an empty string,
+// so "WHERE batch_id IN (0)" is still valid SQL (and simply matches nothing)
 
-// My exam results
+// --- The student's exam results ---
 $my_results = mysqli_query($conn, "
     SELECT r.*, b.batch_name, s.name AS subject_name
     FROM result r
     JOIN batch b ON r.batch_id = b.batchID
     JOIN subject s ON b.subject_id = s.subjectID
     WHERE r.student_id = $user_id
-    ORDER BY r.exam_date DESC
+    ORDER BY r.exam_date DESC   -- most recent exam first
 ");
 
-// My attendance summary per batch (used to compute the overall % per batch)
+// --- Attendance summarised PER BATCH (used for the overview % cards) ---
 $my_attendance = mysqli_query($conn, "
     SELECT b.batchID AS batch_id, b.batch_name, s.name AS subject_name,
-        COUNT(a.attendanceID) AS total,
-        SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,
-        SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,
-        SUM(CASE WHEN a.status='late'    THEN 1 ELSE 0 END) AS late
+        COUNT(a.attendanceID) AS total,                                  -- total classes recorded
+        SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END) AS present,  -- count only 'present' rows
+        SUM(CASE WHEN a.status='absent'  THEN 1 ELSE 0 END) AS absent,   -- count only 'absent' rows
+        SUM(CASE WHEN a.status='late'    THEN 1 ELSE 0 END) AS late      -- count only 'late' rows
     FROM attendance a
     JOIN batch b ON a.batch_id = b.batchID
     JOIN subject s ON b.subject_id = s.subjectID
     WHERE a.student_id = $user_id
-    GROUP BY a.batch_id
+    GROUP BY a.batch_id   -- one summary row per batch, not per individual class date
 ");
 
-// Build a batch_id -> attendance % map from the summary above (for the % column
-// in the detailed records table below)
-$my_attendance_pct  = []; // batch_id -> overall attendance percentage for that batch
-$my_attendance_rows = []; // Plain array version of $my_attendance, so it can be looped again for the overview cards
+// --- Turn that summary into a lookup array + a reusable plain array ---
+$my_attendance_pct  = []; // maps batch_id -> percentage, e.g. [3 => 85, 7 => 60]
+$my_attendance_rows = []; // the full rows, reused later for the overview cards and the filter dropdown
 while ($row = mysqli_fetch_assoc($my_attendance)) {
-    $my_attendance_pct[$row['batch_id']] = $row['total'] > 0 ? round(($row['present'] / $row['total']) * 100) : 0; // Avoid divide-by-zero if no attendance recorded yet
+    $my_attendance_pct[$row['batch_id']] = $row['total'] > 0 ? round(($row['present'] / $row['total']) * 100) : 0;
+    // guard against divide-by-zero if a batch has no attendance recorded yet
     $my_attendance_rows[] = $row;
 }
 
-// Detailed, per-record attendance (one row per date/batch) for the redesigned table
+// --- Detailed, one-row-per-date attendance records (for the searchable table) ---
 $my_attendance_records = mysqli_query($conn, "
     SELECT a.attend_date, a.status, b.batchID AS batch_id, b.batch_name, s.name AS subject_name
     FROM attendance a
     JOIN batch b ON a.batch_id = b.batchID
     JOIN subject s ON b.subject_id = s.subjectID
     WHERE a.student_id = $user_id
-    ORDER BY a.attend_date DESC
+    ORDER BY a.attend_date DESC   -- most recent class date first
+");
+// This is deliberately a SEPARATE query from the summary above:
+// the summary gives one row PER BATCH (for the % cards),
+// this one gives one row PER ATTENDANCE DATE (for the detailed searchable table)
+
+// --- Performance points: lifetime total + full history ---
+$my_points_row = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $user_id");
+$total_points  = $my_points_row ? (int)$my_points_row['total'] : 0; // falls back to 0 if never awarded any points
+$my_points     = mysqli_query($conn, "
+    SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name 
+    FROM performance_points pp 
+    JOIN users u ON pp.awarded_by=u.userID 
+    LEFT JOIN batch b ON pp.batch_id=b.batchID 
+    WHERE pp.student_id=$user_id 
+    ORDER BY pp.performancePointID DESC   -- most recently awarded first
 ");
 
-// My performance points
-$my_points_row = get_one_row($conn, "SELECT SUM(points) AS total FROM performance_points WHERE student_id = $user_id"); // Lifetime total across every award
-$total_points  = $my_points_row ? (int)$my_points_row['total'] : 0; // Falls back to 0 if never awarded any points
-$my_points     = mysqli_query($conn, "SELECT pp.*, u.full_name AS awarded_by_name, b.batch_name FROM performance_points pp JOIN users u ON pp.awarded_by=u.userID LEFT JOIN batch b ON pp.batch_id=b.batchID WHERE pp.student_id=$user_id ORDER BY pp.performancePointID DESC");
-
-// Leaderboard: every student ranked by total performance points earned across all their batches
+// --- School-wide leaderboard, ranking every student by total points ---
 $leaderboard_result = mysqli_query($conn, "
     SELECT u.userID, u.full_name, COALESCE(SUM(pp.points), 0) AS total_points
     FROM users u
-    LEFT JOIN performance_points pp ON pp.student_id = u.userID
+    LEFT JOIN performance_points pp ON pp.student_id = u.userID   -- LEFT JOIN so students with 0 points still appear
     WHERE u.role = 'student'
     GROUP BY u.userID, u.full_name
-    ORDER BY total_points DESC, u.full_name ASC
-"); // Points from every batch a student attended count toward their rank, regardless of which lecturer awarded them
-$leaderboard_rows = []; // Plain array version, so it can be looped once for the table and reused to find my own rank
-$my_rank          = 0;  // 0 means "not found" (shouldn't happen for a logged-in student)
-$lb_rank          = 1;  // Running rank counter as we walk the already-sorted result
+    ORDER BY total_points DESC, u.full_name ASC   -- highest scorer first; alphabetical if tied
+");
+$leaderboard_rows = []; // plain array so we can loop it once here AND reuse it in the HTML below
+$my_rank          = 0;  // 0 = "not found" — shouldn't normally happen for a logged-in student
+$lb_rank          = 1;  // counts upward as we walk the already-sorted result
 while ($lb = mysqli_fetch_assoc($leaderboard_result)) {
     $lb['rank'] = $lb_rank;
-    if ($lb['userID'] == $user_id) $my_rank = $lb_rank; // This is the logged-in student's row — remember their rank
+    if ($lb['userID'] == $user_id) $my_rank = $lb_rank; // this row IS the logged-in student — remember their rank
     $leaderboard_rows[] = $lb;
     $lb_rank++;
 }
 
-// My payment history
+// --- The student's own payment history ---
 $my_payments = mysqli_query($conn, "
     SELECT p.*, b.batch_name, s.name AS subject_name
     FROM payment p
     JOIN batch b ON p.batch_id = b.batchID
     JOIN subject s ON b.subject_id = s.subjectID
     WHERE p.student_id = $user_id
-    ORDER BY p.paymentID DESC
+    ORDER BY p.paymentID DESC   -- most recent payment first
 ");
 
-// Announcements for all or students
+// --- Announcements meant for everyone or specifically for students ---
 $announcements = mysqli_query($conn, "
     SELECT a.*, u.full_name AS posted_by_name
     FROM announcement a
-    LEFT JOIN users u ON a.posted_by = u.userID
+    LEFT JOIN users u ON a.posted_by = u.userID   -- LEFT JOIN in case the poster's account was later deleted
     WHERE a.audience IN ('all', 'students')
     ORDER BY a.created_at DESC
-    LIMIT 10
-"); // Only shows announcements meant for everyone or specifically for students
+    LIMIT 10   -- cap it so the page doesn't get overloaded with old announcements
+");
 
-// Class links for my batches
+// --- Online class-session links, only for batches this student is actually in ---
 $class_sessions = mysqli_query($conn, "
     SELECT cl.*, b.batch_name, s.name AS subject_name, u.full_name AS lecturer_name
     FROM class_sessions cl
     JOIN batch b ON cl.batch_id = b.batchID
     JOIN subject s ON b.subject_id = s.subjectID
     JOIN users u ON cl.lecturer_id = u.userID
-    WHERE cl.batch_id IN ($batch_ids_str)
+    WHERE cl.batch_id IN ($batch_ids_str)   -- this is exactly why $batch_ids_str was built earlier
     ORDER BY cl.class_date DESC
     LIMIT 20
-"); // $batch_ids_str was built above as a safe comma-joined list of this student's own batch ids
+");
 
-// Study materials for my batches
+// --- Study materials, same "only my batches" filtering trick ---
 $materials = mysqli_query($conn, "
     SELECT sm.*, b.batch_name, s.name AS subject_name
     FROM study_materials sm
-    LEFT JOIN batch b ON sm.batch_id = b.batchID
+    LEFT JOIN batch b ON sm.batch_id = b.batchID       -- LEFT JOIN in case a material isn't linked to a specific batch
     LEFT JOIN subject s ON b.subject_id = s.subjectID
     WHERE sm.batch_id IN ($batch_ids_str)
-    ORDER BY sm.created_at DESC
+    ORDER BY sm.created_at DESC                       -- newest upload first
 ");
 ?>
 
