@@ -418,21 +418,18 @@ INSERT INTO subject (code, name, level, fee, description) VALUES
 ('ENG-OL',  'English Language',   'O/L',         2200.00, 'Grammar, comprehension and essay writing for O/L students.'),
 ('SCI-OL',  'Science',            'O/L',         2500.00, 'Physics, Chemistry and Biology combined for O/L.'),
 ('MATH-AL', 'Combined Maths',     'A/L',         3500.00, 'Pure and Applied Mathematics for A/L students.'),
-('PHY-AL',  'Physics',            'A/L',         3200.00, 'Mechanics, Electricity, Waves and Modern Physics.'),
-('ICT-FD',  'ICT Fundamentals',   'Foundation',  1800.00, 'Introduction to computers, MS Office and basic programming.');
+('PHY-AL',  'Physics',            'A/L',         3200.00, 'Mechanics, Electricity, Waves and Modern Physics.');
 
 
 -- ---- BATCHES ----
 -- (subject_id and lecturer_id must match the IDs inserted above)
--- subjects inserted as IDs 1–6, lecturers as IDs 4 (math), 5 (eng), 6 (sci)
+-- subjects inserted as IDs 1–5, lecturers as IDs 4 (math), 5 (eng), 6 (sci)
 INSERT INTO batch (batch_name, subject_id, lecturer_id, schedule, room, capacity, status, start_date) VALUES
 ('Math O/L Batch A',   1, 4, 'Sat & Sun  9:00 AM – 12:00 PM', 'Room 101', 25, 'active',    '2025-01-06'),
 ('Math O/L Batch B',   1, 4, 'Sat & Sun  1:00 PM –  4:00 PM', 'Room 101', 25, 'active',    '2025-01-06'),
 ('English O/L Batch',  2, 5, 'Sat        9:00 AM – 12:00 PM', 'Room 102', 20, 'active',    '2025-01-11'),
 ('Science O/L Batch',  3, 6, 'Sun        9:00 AM – 12:00 PM', 'Room 103', 22, 'active',    '2025-01-12'),
-('Combined Maths A/L', 4, 4, 'Fri        4:00 PM –  7:00 PM', 'Room 201', 18, 'active',    '2025-02-07'),
-('Physics A/L Batch',  5, 6, 'Fri        4:00 PM –  7:00 PM', 'Room 202', 18, 'upcoming',  '2025-06-06'),
-('ICT Foundation',     6, 5, 'Wed        4:00 PM –  6:00 PM', 'Lab 01',   20, 'active',    '2025-01-15');
+('Combined Maths A/L', 4, 4, 'Fri        4:00 PM –  7:00 PM', 'Room 201', 18, 'active',    '2025-02-07');
 
 -- ---- LECTURER_SUBJECT (seeded from the batches above, so it isn't empty) ----
 INSERT IGNORE INTO lecturer_subject (lecturer_id, subject_id)
@@ -441,136 +438,43 @@ SELECT DISTINCT lecturer_id, subject_id FROM batch;
 
 -- ---- ENROLLMENTS ----
 -- student IDs: Kabir=8, Ishfaq=9, Amaya=10, Nuwan=11, Hasini=12
--- batch IDs: 1=Math-A, 2=Math-B, 3=English, 4=Science, 5=CombMaths, 7=ICT
+-- batch IDs: 1=Math-A, 2=Math-B, 3=English, 4=Science, 5=CombMaths
 INSERT INTO enrollments (student_id, batch_id, enroll_date, status) VALUES
 (8,  1, '2025-01-06', 'active'),   -- Kabir   → Math A
-(8,  3, '2025-01-11', 'active'),   -- Kabir   → English
 (9,  1, '2025-01-06', 'active'),   -- Ishfaq  → Math A
-(9,  4, '2025-01-12', 'active'),   -- Ishfaq  → Science
 (10, 2, '2025-01-06', 'active'),   -- Amaya   → Math B
-(10, 3, '2025-01-11', 'active'),   -- Amaya   → English
-(10, 7, '2025-01-15', 'active'),   -- Amaya   → ICT
 (11, 2, '2025-01-06', 'active'),   -- Nuwan   → Math B
-(11, 4, '2025-01-12', 'active'),   -- Nuwan   → Science
-(12, 5, '2025-02-07', 'active'),   -- Hasini  → Combined Maths
-(12, 7, '2025-01-15', 'active');   -- Hasini  → ICT
+(12, 5, '2025-02-07', 'active');   -- Hasini  → Combined Maths
 
 
 -- ---- ATTENDANCE ----
 -- lecturer IDs: 4 = Math lecturer, 5 = Eng lecturer, 6 = Sci lecturer
 INSERT INTO attendance (student_id, batch_id, attend_date, status, marked_by) VALUES
--- Kabir – Math A (batch 1)
-(8, 1, '2025-01-11', 'present', 4),
-(8, 1, '2025-01-18', 'present', 4),
-(8, 1, '2025-01-25', 'late',    4),
-(8, 1, '2025-02-01', 'present', 4),
-(8, 1, '2025-02-08', 'absent',  4),
-(8, 1, '2025-02-15', 'present', 4),
--- Kabir – English (batch 3)
-(8, 3, '2025-01-11', 'present', 5),
-(8, 3, '2025-01-18', 'present', 5),
-(8, 3, '2025-01-25', 'present', 5),
-(8, 3, '2025-02-01', 'absent',  5),
--- Ishfaq – Math A (batch 1)
-(9, 1, '2025-01-11', 'present', 4),
-(9, 1, '2025-01-18', 'absent',  4),
-(9, 1, '2025-01-25', 'present', 4),
-(9, 1, '2025-02-01', 'present', 4),
-(9, 1, '2025-02-08', 'late',    4),
--- Ishfaq – Science (batch 4)
-(9, 4, '2025-01-12', 'present', 6),
-(9, 4, '2025-01-19', 'present', 6),
-(9, 4, '2025-01-26', 'present', 6),
--- Amaya – Math B (batch 2)
-(10, 2, '2025-01-11', 'present', 4),
-(10, 2, '2025-01-18', 'present', 4),
-(10, 2, '2025-01-25', 'present', 4),
-(10, 2, '2025-02-01', 'present', 4),
-(10, 2, '2025-02-08', 'present', 4),
--- Amaya – English (batch 3)
-(10, 3, '2025-01-11', 'present', 5),
-(10, 3, '2025-01-18', 'late',    5),
-(10, 3, '2025-01-25', 'present', 5),
--- Nuwan – Math B (batch 2)
-(11, 2, '2025-01-11', 'absent',  4),
-(11, 2, '2025-01-18', 'present', 4),
-(11, 2, '2025-01-25', 'present', 4),
-(11, 2, '2025-02-01', 'absent',  4),
-(11, 2, '2025-02-08', 'present', 4),
--- Hasini – Combined Maths (batch 5)
-(12, 5, '2025-02-08', 'present', 4),
-(12, 5, '2025-02-15', 'present', 4),
-(12, 5, '2025-02-22', 'late',    4),
--- Hasini – ICT (batch 7)
-(12, 7, '2025-01-15', 'present', 5),
-(12, 7, '2025-01-22', 'present', 5),
-(12, 7, '2025-01-29', 'present', 5);
+(8,  1, '2025-01-11', 'present', 4),  -- Kabir  – Math A
+(9,  1, '2025-01-11', 'present', 4),  -- Ishfaq – Math A
+(10, 2, '2025-01-11', 'present', 4),  -- Amaya  – Math B
+(11, 2, '2025-01-11', 'absent',  4),  -- Nuwan  – Math B
+(12, 5, '2025-02-08', 'present', 4);  -- Hasini – Combined Maths
 
 
 -- ---- RESULTS ----
--- uploaded_by: 4=Math, 5=Eng/ICT, 6=Science
+-- uploaded_by: 4=Math, 5=English, 6=Science
 INSERT INTO result (student_id, batch_id, exam_name, exam_date, marks, total_marks, grade, comments, uploaded_by) VALUES
--- Kabir – Math A exams
-(8, 1, 'Monthly Test 1', '2025-02-01', 78, 100, 'A', 'Good effort!', 4),
-(8, 1, 'Monthly Test 2', '2025-03-01', 85, 100, 'A+', 'Excellent work!', 4),
-(8, 1, 'Mid-Term Exam', '2025-04-15', 80, 100, 'A', 'Very good performance.', 4),
--- Kabir – English
-(8, 3, 'Grammar Test', '2025-02-15', 72, 100, 'A', 'Needs more practice.', 5),
-(8, 3, 'Essay Test', '2025-03-20', 68, 100, 'A-', 'Work on writing style.', 5),
--- Ishfaq – Math A
-(9, 1, 'Monthly Test 1', '2025-02-01', 65, 100, 'A-', 'Revise algebra.', 4),
-(9, 1, 'Monthly Test 2', '2025-03-01', 70, 100, 'A', 'Improving!', 4),
-(9, 1, 'Mid-Term Exam', '2025-04-15', 74, 100, 'A', 'Good progress.', 4),
--- Ishfaq – Science
-(9, 4, 'Theory Test 1', '2025-02-20', 82, 100, 'A', 'Strong in Physics.', 6),
-(9, 4, 'Theory Test 2', '2025-03-25', 78, 100, 'A', 'Good overall.', 6),
--- Amaya – Math B
-(10, 2, 'Monthly Test 1', '2025-02-01', 91, 100, 'A+', 'Outstanding!', 4),
-(10, 2, 'Monthly Test 2', '2025-03-01', 88, 100, 'A+', 'Keep it up!', 4),
-(10, 2, 'Mid-Term Exam', '2025-04-15', 93, 100, 'A+', 'Top of the class!', 4),
--- Amaya – English
-(10, 3, 'Grammar Test', '2025-02-15', 80, 100, 'A', 'Very good!', 5),
--- Nuwan – Math B
-(11, 2, 'Monthly Test 1', '2025-02-01', 55, 100, 'B', 'Please revise Chapter 3.', 4),
-(11, 2, 'Monthly Test 2', '2025-03-01', 62, 100, 'B+', 'Slight improvement.', 4),
-(11, 2, 'Mid-Term Exam', '2025-04-15', 70, 100, 'A', 'Good progress!', 4),
--- Hasini – Combined Maths
-(12, 5, 'Integration Test', '2025-03-10', 88, 100, 'A+', 'Excellent!', 4),
-(12, 5, 'Vectors Test', '2025-04-10', 84, 100, 'A', 'Very good.', 4),
--- Hasini – ICT
-(12, 7, 'MS Office Test',     '2025-02-20', 95, 100, 'A',  'Perfect score!',          5);
+(8,  1, 'Monthly Test 1',   '2025-02-01', 78, 100, 'A',  'Good effort!',                4),  -- Kabir  – Math A
+(9,  1, 'Monthly Test 1',   '2025-02-01', 65, 100, 'A-', 'Revise algebra.',             4),  -- Ishfaq – Math A
+(10, 2, 'Monthly Test 1',   '2025-02-01', 91, 100, 'A+', 'Outstanding!',                4),  -- Amaya  – Math B
+(11, 2, 'Monthly Test 1',   '2025-02-01', 55, 100, 'B',  'Please revise Chapter 3.',    4),  -- Nuwan  – Math B
+(12, 5, 'Integration Test', '2025-03-10', 88, 100, 'A+', 'Excellent!',                  4);  -- Hasini – Combined Maths
 
 
 -- ---- PAYMENTS ----
 -- student IDs: 8=Kabir, 9=Ishfaq, 10=Amaya, 11=Nuwan, 12=Hasini
 INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES
--- Kabir – Math A (batch 1)
-(8, 1,  2500.00, '2025-01', 'RCP-001', '2025-01-08', 'approved'),
-(8, 1,  2500.00, '2025-02', 'RCP-005', '2025-02-07', 'approved'),
-(8, 1,  2500.00, '2025-03', 'RCP-010', '2025-03-06', 'approved'),
-(8, 1,  2500.00, '2025-04', 'RCP-015', '2025-04-07', 'pending'),
--- Kabir – English (batch 3)
-(8, 3,  2200.00, '2025-01', 'RCP-002', '2025-01-12', 'approved'),
-(8, 3,  2200.00, '2025-02', 'RCP-006', '2025-02-11', 'approved'),
-(8, 3,  2200.00, '2025-03', 'RCP-011', '2025-03-10', 'pending'),
--- Ishfaq – Math A (batch 1)
-(9, 1,  2500.00, '2025-01', 'RCP-003', '2025-01-09', 'approved'),
-(9, 1,  2500.00, '2025-02', 'RCP-007', '2025-02-08', 'approved'),
-(9, 1,  2500.00, '2025-03', 'RCP-012', '2025-03-07', 'rejected'),
-(9, 1,  2500.00, '2025-04', 'RCP-016', '2025-04-08', 'pending'),
--- Amaya – Math B (batch 2)
-(10, 2, 2500.00, '2025-01', 'RCP-004', '2025-01-10', 'approved'),
-(10, 2, 2500.00, '2025-02', 'RCP-008', '2025-02-10', 'approved'),
-(10, 2, 2500.00, '2025-03', 'RCP-013', '2025-03-08', 'approved'),
-(10, 2, 2500.00, '2025-04', 'RCP-017', '2025-04-09', 'approved'),
--- Nuwan – Math B (batch 2)
-(11, 2, 2500.00, '2025-01', 'RCP-018', '2025-01-11', 'approved'),
-(11, 2, 2500.00, '2025-02', 'RCP-019', '2025-02-12', 'approved'),
-(11, 2, 2500.00, '2025-03', 'RCP-020', '2025-03-11', 'pending'),
--- Hasini – Combined Maths (batch 5)
-(12, 5, 3500.00, '2025-02', 'RCP-021', '2025-02-10', 'approved'),
-(12, 5, 3500.00, '2025-03', 'RCP-022', '2025-03-09', 'approved'),
-(12, 5, 3500.00, '2025-04', 'RCP-023', '2025-04-10', 'approved');
+(8,  1, 2500.00, '2025-01', 'RCP-001', '2025-01-08', 'approved'),  -- Kabir  – Math A
+(9,  1, 2500.00, '2025-02', 'RCP-007', '2025-02-08', 'rejected'),  -- Ishfaq – Math A
+(10, 2, 2500.00, '2025-01', 'RCP-004', '2025-01-10', 'approved'),  -- Amaya  – Math B
+(11, 2, 2500.00, '2025-03', 'RCP-020', '2025-03-11', 'pending'),   -- Nuwan  – Math B
+(12, 5, 3500.00, '2025-02', 'RCP-021', '2025-02-10', 'approved');  -- Hasini – Combined Maths
 
 
 -- ---- ANNOUNCEMENTS ----
@@ -603,7 +507,7 @@ INSERT INTO enquiries (name, phone, email, interest, notes, status) VALUES
 ('Ruwan Kumara',     '0776543210', 'ruwan@email.lk',    'Science',          'Student came in person. Wants to join ASAP.',        'contacted'),
 ('Ayesha Fathima',   '0754321098', 'ayesha@email.lk',   'English Language', 'Phone enquiry. Will call back on Friday.',           'pending'),
 ('Sandaru Perera',   '0767890123', '',                  'Combined Maths',   'Parent enquired. Son currently at another institute.','contacted'),
-('Thisuri Weerasiri','0723456789', 'this@email.lk',     'ICT Fundamentals', 'Walk-in. Enrolled in ICT batch successfully.',       'enrolled');
+('Thisuri Weerasiri','0723456789', 'this@email.lk',     'Physics',           'Walk-in. Enrolled successfully.',                    'enrolled');
 
 
 -- ---- FEEDBACK ----
@@ -618,16 +522,11 @@ INSERT INTO feedback (name, role, subject, email, rating, comments, recommend) V
 -- ---- PERFORMANCE POINTS ----
 -- awarded_by: 4=Math, 5=Eng, 6=Science
 INSERT INTO performance_points (student_id, awarded_by, batch_id, points, reason, award_date) VALUES
-(8,  4, 1, 15, 'Top marks in Monthly Test 2',       '2025-03-05'),
-(8,  5, 3, 10, 'Best essay in the class',           '2025-03-22'),
-(9,  6, 4, 12, 'Outstanding Theory Test 1 result',  '2025-02-22'),
-(9,  4, 1, 8,  'Good improvement in Test 2',        '2025-03-05'),
-(10, 4, 2, 20, 'Top of class – Mid-Term Exam',      '2025-04-18'),
-(10, 5, 3, 10, 'Excellent grammar test performance','2025-02-18'),
-(10, 4, 2, 15, 'Consistent top performer',          '2025-03-05'),
-(11, 4, 2, 5,  'Good improvement shown',            '2025-04-18'),
-(12, 4, 5, 18, 'Excellent integration test result', '2025-03-12'),
-(12, 5, 7, 20, 'Perfect score in ICT test',         '2025-02-22');
+(8,  4, 1, 15, 'Top marks in Monthly Test 1',       '2025-02-05'),  -- Kabir  – Math A
+(9,  4, 1, 8,  'Good improvement shown',            '2025-02-05'),  -- Ishfaq – Math A
+(10, 4, 2, 20, 'Top of class this month',           '2025-02-05'),  -- Amaya  – Math B
+(11, 4, 2, 5,  'Good improvement shown',            '2025-02-05'),  -- Nuwan  – Math B
+(12, 4, 5, 18, 'Excellent integration test result', '2025-03-12');  -- Hasini – Combined Maths
 
 
 -- ---- PARENT–STUDENT LINKS ----
