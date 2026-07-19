@@ -8,15 +8,17 @@
 
 // Note: delete_ann and delete_link are handled in dashboard.php BEFORE HTML output.
 
-// --- MESSAGE VARIABLES ---
-$ann_msg  = ''; // Announcement post result message
-$link_msg = ''; // Class link save result message
-$att_msg  = ''; // Attendance save result message
-$res_msg  = ''; // Exam result upload message
-$pts_msg  = ''; // Performance points award message
-$mat_msg  = ''; // Study material upload message
 
-// Show material upload success/error from redirect
+// --- MESSAGE VARIABLES: one per form on this page, all start empty ---
+$ann_msg  = ''; // holds the result message after posting an announcement
+$link_msg = ''; // holds the result message after saving a class link
+$att_msg  = ''; // holds the result message after marking attendance
+$res_msg  = ''; // holds the result message after uploading a result
+$pts_msg  = ''; // holds the result message after awarding points
+$mat_msg  = ''; // holds the result message after uploading study material
+
+// Study material uploads happen through a SEPARATE file (upload_material.php),
+// which redirects back here with ?mat_success=... or ?mat_error=... in the URL
 if (isset($_GET['mat_success'])) $mat_msg = "<div style='background:#dcfce7; color:#166534; padding:10px; border-radius:7px; margin-bottom:14px;'>✅ " . htmlspecialchars($_GET['mat_success']) . "</div>"; // Comes from upload_material.php's redirect
 if (isset($_GET['mat_error']))   $mat_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ " . htmlspecialchars($_GET['mat_error']) . "</div>";   // Comes from upload_material.php's redirect
 
@@ -26,7 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['post_announcement'])) 
     $ann_message  = mysqli_real_escape_string($conn, trim($_POST['ann_message'])); // Announcement body
     $ann_audience = mysqli_real_escape_string($conn, $_POST['ann_audience']);      // Who should see it
     $ann_date     = date('Y-m-d');                                                 // Today's date, used as the post date
-    if (empty($ann_title) || empty($ann_message)) {
+    
+    if (empty($ann_title) || empty($ann_message)) { // if announcement title and message is empty
         $ann_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ Title and message are required.</div>"; // Required fields check
     } else {
         mysqli_query($conn, "INSERT INTO announcement (title, message, audience, post_date, posted_by) VALUES ('$ann_title', '$ann_message', '$ann_audience', '$ann_date', $user_id)"); // Save the announcement
@@ -40,6 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_class_link'])) {
     $link_url      = mysqli_real_escape_string($conn, trim($_POST['link_url']));   // The actual meeting URL
     $link_date     = mysqli_real_escape_string($conn, $_POST['link_date']);        // Which date this class link is for
     $link_batch_id = (int)$_POST['link_batch_id'];                                  // Which batch this link belongs to
+
+    //if all the fields are empty
     if (empty($link_title) || empty($link_url) || empty($link_date) || $link_batch_id <= 0) {
         $link_msg = "<div style='background:#fee2e2; color:#991b1b; padding:10px; border-radius:7px; margin-bottom:14px;'>❌ All fields are required.</div>"; // Required fields check
     } else {
@@ -54,9 +59,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_class_link'])) {
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['mark_attendance'])) {
     $att_batch = (int)$_POST['att_batch_id'];                          // Which batch this attendance is for
     $att_date  = mysqli_real_escape_string($conn, $_POST['att_date']); // Which date this attendance is for
-    foreach ($_POST['att_status'] as $sid => $status) {                // $_POST['att_status'] is an array: student_id => status, one entry per student in the form
-        $sid    = (int)$sid;                                            // The student this status belongs to
-        $status = mysqli_real_escape_string($conn, $status);            // present / absent / late
+    
+    // $_POST['att_status'] is an ARRAY here, not a single value —
+    // the HTML form names each dropdown att_status[studentID], so PHP automatically
+    // collects them all into one array: [studentID => 'present', studentID2 => 'absent', ...]
+    foreach ($_POST['att_status'] as $sid => $status) {
+        $sid    = (int)$sid;                                 // this loop iteration's student ID
+        $status = mysqli_real_escape_string($conn, $status);  // this student's chosen status: present/absent/late
+        
         // Check if attendance for this student/batch/date already exists
         $chk = mysqli_query($conn, "SELECT attendanceID FROM attendance WHERE student_id=$sid AND batch_id=$att_batch AND attend_date='$att_date'");
         if (mysqli_num_rows($chk) > 0) {
@@ -87,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['upload_result'])) {
 
 // --- PERFORMANCE POINTS: Award ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['award_points'])) {
-    $pt_student = (int)($_POST['pt_student_id'] ?? 0); // ?? 0 guards against the dependent select submitting no value at all
+    $pt_student = (int)($_POST['pt_student_id'] ?? 0); // ?? 0 guards against the dependent select submitting no value at all/empty value if the dependent dropdown wasn't populated in time
     $pt_batch   = (int)($_POST['pt_batch_id'] ?? 0);   // Which batch this award is tied to
     $pt_points  = (int)$_POST['pt_points'];             // How many points to award
     $pt_reason  = mysqli_real_escape_string($conn, $_POST['pt_reason']); // Optional note, e.g. "Best in class"
