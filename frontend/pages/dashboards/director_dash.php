@@ -4,13 +4,13 @@
 //  Read-only overview: key stats, top students, batch summary.
 // ============================================================
 
-// Stats
+// Stats. uses our helper from helpers.php
 $cnt_students  = count_rows($conn, 'users',   "role='student'");   // Total student accounts
 $cnt_lecturers = count_rows($conn, 'users',   "role='lecturer'");  // Total lecturer accounts
 $cnt_batches   = count_rows($conn, 'batch',   "status='active'");  // Currently active batches
-$cnt_subjects  = count_rows($conn, 'subject');                     // Total subjects offered
-$rev           = get_one_row($conn, "SELECT SUM(amount) AS total FROM payment WHERE status='approved'"); // Sum of every approved payment
-$total_revenue = $rev ? (float)$rev['total'] : 0; // Falls back to 0 if there are no approved payments yet
+$cnt_subjects  = count_rows($conn, 'subject');                     // Total subjects offered. no condition = count ALL subjects
+$rev           = get_one_row($conn, "SELECT SUM(amount) AS total FROM payment WHERE status='approved'");     // Sum every approved payment to get total revenue
+$total_revenue = $rev ? (float)$rev['total'] : 0;     // if there are zero approved payments, SUM() returns NULL — fall back to 0
 
 // Top 5 students by average exam score
 $top_students = mysqli_query($conn, "
@@ -36,8 +36,8 @@ $batches = mysqli_query($conn, "
         (SELECT COUNT(*) FROM attendance a WHERE a.batch_id = b.batchID) AS total_att,
         b.status
     FROM batch b
-    JOIN subject s ON b.subject_id = s.subjectID
-    JOIN users u ON b.lecturer_id = u.userID
+    JOIN subject s ON b.subject_id = s.subjectID    -- get the subject's name
+    JOIN users u ON b.lecturer_id = u.userID          -- get the lecturer's name
     ORDER BY b.status DESC
 "); // Each metric (enrolled, avg_score, attendance counts) is its own subquery — keeps the main query simple to read
 
@@ -52,6 +52,8 @@ $podium_styles = [
 ];
 ?>
 
+
+<!-- html -->
 <div class="dashboard-wrapper">
     <aside class="sidebar">
         <div class="sidebar-header"><h3>🏛️ Director</h3><p><?php echo $full_name; ?></p></div>
