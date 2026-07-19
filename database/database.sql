@@ -99,7 +99,6 @@ CREATE TABLE IF NOT EXISTS lecturer (
 
 CREATE TABLE IF NOT EXISTS parent (
     parentID   INT PRIMARY KEY,
-    contact_no VARCHAR(30),
     FOREIGN KEY (parentID) REFERENCES users(userID) ON DELETE CASCADE
 );
 
