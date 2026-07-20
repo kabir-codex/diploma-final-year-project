@@ -5,8 +5,6 @@
 //  attendance, performance, and revenue.
 // ============================================================
 
-// Basic counts — reused pattern from director_dash.php
-
 $cnt_students  = count_rows($conn, 'users',   "role='student'");   // Total student accounts
 $cnt_lecturers = count_rows($conn, 'users',   "role='lecturer'");  // Total lecturer accounts
 $cnt_batches   = count_rows($conn, 'batch', "status='active'");  // Currently active batches
@@ -25,7 +23,6 @@ $batches = mysqli_query($conn, "
     ORDER BY b.status DESC, b.batch_name
 "); // Each metric is its own subquery, keeping the main query straightforward to read
 
-
 // All students with how many batches they are in
 $students = mysqli_query($conn, "
     SELECT u.userID, u.full_name, u.email, u.phone, u.status,
@@ -36,7 +33,6 @@ $students = mysqli_query($conn, "
     GROUP BY u.userID
     ORDER BY u.full_name
 "); // LEFT JOIN so students with zero active enrollments still show up (with batch_count = 0)
-
 
 // All lecturers with their batch count
 $lecturers = mysqli_query($conn, "
@@ -49,8 +45,7 @@ $lecturers = mysqli_query($conn, "
     ORDER BY u.full_name
 "); // LEFT JOIN so lecturers with zero active batches still show up (with batch_count = 0)
 
-
-// Attendance: how many present/absent/late per student per batch
+// Attendance summary per student per batch
 $attendance = mysqli_query($conn, "
     SELECT b.batch_name, u.full_name AS student_name,
         COUNT(a.attendanceID) AS total_classes,
@@ -64,8 +59,7 @@ $attendance = mysqli_query($conn, "
     ORDER BY b.batch_name, u.full_name
 "); // One row per student per batch they have attendance records for
 
-
-// Performance summary (avg/best/lowest marks per student per batch)
+// Student performance summary
 $performance = mysqli_query($conn, "
     SELECT u.full_name, b.batch_name, s.name AS subject_name,
         COUNT(r.resultID) AS exam_count,
@@ -78,18 +72,17 @@ $performance = mysqli_query($conn, "
     LEFT JOIN subject s ON b.subject_id = s.subjectID
     WHERE u.role = 'student'
     GROUP BY u.userID, r.batch_id
-    HAVING exam_count > 0                  -- only show students who have actually sat at least 1 exam
+    HAVING exam_count > 0
     ORDER BY avg_marks DESC
 "); // HAVING exam_count > 0 excludes students who haven't sat any exams yet for a given batch
 
-
-// Revenue grouped by month AND status (e.g. "June - approved", "June - pending")
+// Revenue by month and status
 $revenue = mysqli_query($conn, "
     SELECT pay_month, SUM(amount) AS total, status
     FROM payment
-    GROUP BY pay_month, status                             -- e.g. one row for 'June-approved', another for 'June-pending'
-    ORDER BY pay_month DESC                                
-    LIMIT 12                                                -- only the last 12 months
+    GROUP BY pay_month, status
+    ORDER BY pay_month DESC
+    LIMIT 12
 "); // One row per month+status combination (e.g. June/approved, June/pending), capped at the last 12
 ?>
 
@@ -112,13 +105,13 @@ $revenue = mysqli_query($conn, "
     <main class="dashboard-main">
         <h1 class="dashboard-title">Manager Dashboard</h1>
         <p class="dashboard-subtitle">Welcome, <?php echo $full_name; ?>.</p>
-<!-- Shows a green success box if a CRUD action redirected here with ?msg=... -->
+
         <?php if (isset($_GET['msg'])): ?>
             <div style="background:#dcfce7; color:#166534; padding:12px 16px; border-radius:8px; margin-bottom:20px;">✅ <?php echo htmlspecialchars($_GET['msg']); ?></div>
             <!-- Comes from a redirect like dashboard.php?msg=..., set by various CRUD scripts -->
         <?php endif; ?>
 
-        <!-- OVERVIEW: 4 stat cards using the counts calculated at the top -->
+        <!-- OVERVIEW STATS -->
         <div id="overview" class="stats-grid">
             <div class="stat-card">       <div class="stat-number"><?php echo $cnt_students; ?></div> <div class="stat-label">Total Students</div></div>
             <div class="stat-card green"> <div class="stat-number"><?php echo $cnt_lecturers; ?></div><div class="stat-label">Lecturers</div></div>
@@ -127,7 +120,7 @@ $revenue = mysqli_query($conn, "
             <!-- Divides by 1000 and shows one decimal, e.g. "245.5K" instead of "245,500" -->
         </div>
 
-        <!-- BATCH MONITORING TABLE -->
+        <!-- BATCH MONITORING -->
         <div id="batches" class="panel">
             <div class="panel-title">🗓️ Batch Monitoring</div>
             <div class="table-wrapper"><table>
@@ -161,7 +154,7 @@ $revenue = mysqli_query($conn, "
             </table></div>
         </div>
 
-        <!-- STUDENT DETAILS TABLE -->
+        <!-- STUDENT DETAILS -->
         <div id="students" class="panel">
             <div class="panel-title">🎓 Student Details</div>
             <div class="table-wrapper"><table>
@@ -188,7 +181,7 @@ $revenue = mysqli_query($conn, "
             </table></div>
         </div>
 
-        <!-- LECTURER DETAILS TABLE-->
+        <!-- LECTURER DETAILS -->
         <div id="lecturers" class="panel">
             <div class="panel-title">👨‍🏫 Lecturer Details</div>
             <div class="table-wrapper"><table>
@@ -215,7 +208,7 @@ $revenue = mysqli_query($conn, "
             </table></div>
         </div>
 
-        <!-- ATTENDANCE MONITOR TABLE -->
+        <!-- ATTENDANCE MONITOR -->
         <div id="attendance" class="panel">
             <div class="panel-title">✅ Monitor Attendance</div>
             <div class="table-wrapper"><table>
@@ -317,7 +310,7 @@ $revenue = mysqli_query($conn, "
     </main>
 </div>
 
-<!-- Scroll-spy script: highlights the sidebar link for whatever section is currently on screen -->
+<!-- Sidebar: highlight the section currently visible on screen -->
 <script>
 (function() {
     var links  = document.querySelectorAll('.sidebar-nav a'); // Every link in the sidebar

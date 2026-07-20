@@ -95,3 +95,60 @@ function clean($conn, $value) {
     // so they can't break out of the SQL query and run malicious commands
     return mysqli_real_escape_string($conn, trim($value));
 }
+
+// ============================================================
+//  SHARED VALIDATION HELPERS
+//  Used by every form that collects an email/phone (Admin's Add/Edit
+//  User, and the Receptionist's Register Student form) so the rule is
+//  defined once and can't drift between the two portals.
+// ============================================================
+
+// A phone number must be EXACTLY 10 digits — no letters, no symbols,
+// no spaces, and not fewer/more than 10 digits.
+function is_valid_phone($phone) {
+    return (bool) preg_match('/^[0-9]{10}$/', trim($phone));
+}
+
+// Basic, reliable email format check using PHP's built-in filter.
+function is_valid_email($email) {
+    return filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false;
+}
+
+// ============================================================
+//  ROLE -> SUBTYPE TABLE MAP
+//  Every role has its own "subtype" table (student, lecturer, parent,
+//  receptionist, manager, admin, director) holding extra fields for
+//  that role. Each subtype table's own primary key is also a FOREIGN
+//  KEY back to users.userID (same value, strict 1:1).
+//
+//  Both add_user.php (creating a user) and edit_user.php (changing an
+//  existing user's role) need this same map, so it lives here once.
+// ============================================================
+function subtype_table_map() {
+    return [
+        'student'      => ['table' => 'student',      'pk' => 'studentID'],
+        'lecturer'     => ['table' => 'lecturer',      'pk' => 'lecturerID'],
+        'parent'       => ['table' => 'parent',        'pk' => 'parentID'],
+        'receptionist' => ['table' => 'receptionist',  'pk' => 'receptionistID'],
+        'manager'      => ['table' => 'manager',       'pk' => 'managerID'],
+        'admin'        => ['table' => 'admin',         'pk' => 'adminID'],
+        'director'     => ['table' => 'director',      'pk' => 'directorID'],
+    ];
+}
+
+// Make sure a user has a matching row in their role's subtype table.
+// Safe to call even if the row already exists (uses INSERT IGNORE).
+// This is the fix for a real bug: a user whose role is changed via
+// Edit User previously never got a subtype row created for the new
+// role, which later caused foreign key errors when that user was
+// referenced as a student in enrollments/payments, or as a parent in
+// parent_student links.
+function ensure_subtype_row($conn, $user_id, $role) {
+    $map = subtype_table_map();
+    if (!isset($map[$role])) {
+        return true; // Unknown/no-subtype role — nothing to do.
+    }
+    $table = $map[$role]['table'];
+    $pk    = $map[$role]['pk'];
+    return mysqli_query($conn, "INSERT IGNORE INTO $table ($pk) VALUES (" . (int)$user_id . ")");
+}

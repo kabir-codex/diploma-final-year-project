@@ -28,8 +28,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['link_parent'])) {
         if (mysqli_num_rows($chk) > 0) {
             $link_parent_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ This parent is already linked to that student.</div>"; // Avoid duplicate links
         } else {
-            mysqli_query($conn, "INSERT INTO parent_student (parent_id, student_id) VALUES ($lp_parent_id, $lp_student_id)"); // Create the link
-            $link_parent_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Parent linked to student successfully!</div>";
+            $link_ins = mysqli_query($conn, "INSERT INTO parent_student (parent_id, student_id) VALUES ($lp_parent_id, $lp_student_id)"); // Create the link
+            // BUG FIX: check the result instead of assuming success -- a failed
+            // insert (e.g. missing parent/student subtype row) used to still
+            // show a green success message. Self-heal the subtype row and retry.
+            if (!$link_ins) {
+                ensure_subtype_row($conn, $lp_parent_id, 'parent');
+                ensure_subtype_row($conn, $lp_student_id, 'student');
+                $link_ins = mysqli_query($conn, "INSERT INTO parent_student (parent_id, student_id) VALUES ($lp_parent_id, $lp_student_id)");
+            }
+            if ($link_ins) {
+                $link_parent_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Parent linked to student successfully!</div>";
+            } else {
+                $link_parent_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Could not link parent to student. Please try again.</div>";
+            }
         }
     }
 }
@@ -64,11 +76,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['register_student'])) {
     $reg_user      = mysqli_real_escape_string($conn, trim($_POST['reg_username'])); // Login username
     $reg_pass_raw  = trim($_POST['reg_password']);                                   // Plain-text password as typed (only used for hashing/validation, never stored as-is)
     $reg_pass      = mysqli_real_escape_string($conn, password_hash($reg_pass_raw, PASSWORD_DEFAULT)); // Securely hashed password — this is what actually gets stored
-    $reg_email = mysqli_real_escape_string($conn, trim($_POST['reg_email'])); // Optional email
-    $reg_phone = mysqli_real_escape_string($conn, trim($_POST['reg_phone'])); // Optional phone
+    $reg_email = mysqli_real_escape_string($conn, trim($_POST['reg_email'])); // Email -- mandatory (Issue 7)
+    $reg_phone = mysqli_real_escape_string($conn, trim($_POST['reg_phone'])); // Phone -- mandatory, 10 digits (Issue 7)
 
-    if (empty($reg_name) || empty($reg_user) || empty($reg_pass_raw)) {
-        $reg_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Name, username and password are required.</div>"; // Check the raw password, not the hash, so an empty password is still caught
+    if (empty($reg_name) || empty($reg_user) || empty($reg_pass_raw) || empty($reg_email) || empty($reg_phone)) {
+        $reg_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Name, username, password, email and phone are all required.</div>"; // Check the raw password, not the hash, so an empty password is still caught
+    } elseif (!is_valid_email($reg_email)) {
+        $reg_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please enter a valid email address.</div>";
+    } elseif (!is_valid_phone($reg_phone)) {
+        $reg_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Phone number must be exactly 10 digits (numbers only).</div>";
     } else {
         // Check if username already exists
         $chk = mysqli_query($conn, "SELECT userID FROM users WHERE username='$reg_user'");
@@ -148,8 +164,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['enroll_student'])) {
             $enroll_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ Student already enrolled in that batch.</div>"; // Avoid duplicate enrollments
         } else {
             $date = date('Y-m-d'); // Today's date, used as the enrollment date
-            mysqli_query($conn, "INSERT INTO enrollments (student_id, batch_id, enroll_date, status) VALUES ($student_id, $batch_id, '$date', 'active')"); // Create the enrollment
-            $enroll_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Student enrolled successfully!</div>";
+            $enroll_ins = mysqli_query($conn, "INSERT INTO enrollments (student_id, batch_id, enroll_date, status) VALUES ($student_id, $batch_id, '$date', 'active')"); // Create the enrollment
+            // BUG FIX (root cause of "existing student doesn't see their assigned
+            // batch"): this insert's result used to be ignored, so the page
+            // always showed "Student enrolled successfully!" even when the
+            // insert silently failed -- which happened for any student account
+            // that was missing its row in the `student` subtype table (e.g. an
+            // account whose role was changed via Edit User before that was
+            // fixed). Now we self-heal the missing subtype row and retry once,
+            // and only report success if the enrollment row actually exists.
+            if (!$enroll_ins) {
+                ensure_subtype_row($conn, $student_id, 'student');
+                $enroll_ins = mysqli_query($conn, "INSERT INTO enrollments (student_id, batch_id, enroll_date, status) VALUES ($student_id, $batch_id, '$date', 'active')");
+            }
+            if ($enroll_ins) {
+                $enroll_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Student enrolled successfully!</div>";
+            } else {
+                $enroll_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Could not enroll student. Please try again.</div>";
+            }
         }
     }
 }
@@ -167,12 +199,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['record_payment'])) {
     if (!$pay_student || !$pay_batch || $pay_amount <= 0 || empty($pay_month)) {
         $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Please fill in all required payment fields.</div>"; // Required fields check
     } else {
-        $ins = mysqli_query($conn, "INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES ($pay_student,$pay_batch,$pay_amount,'$pay_month','$rec_no','$pay_date','approved')"); // Receptionist-recorded payments are auto-approved (cash/in-person payments, unlike student-submitted ones which start pending)
-        if ($ins) {
-            $new_id  = mysqli_insert_id($conn); // The id of the payment row just inserted, needed to build the print-receipt link
-            $pay_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Payment recorded! Receipt: <strong>$rec_no</strong> &nbsp; <a href='print_receipt.php?id=$new_id' target='_blank' class='btn btn-small btn-primary'>🖨️ Print Receipt</a></div>";
+        // BUG FIX (Issue 3): block a duplicate payment for the SAME student +
+        // batch + month only (a rejected payment for that month doesn't count,
+        // so the student/receptionist can still resubmit it). Any OTHER month --
+        // past or future -- is always allowed; nothing here blocks paying ahead.
+        $dup = mysqli_query($conn, "SELECT paymentID FROM payment WHERE student_id=$pay_student AND batch_id=$pay_batch AND pay_month='$pay_month' AND status IN ('pending','approved')");
+        if ($dup && mysqli_num_rows($dup) > 0) {
+            $pay_msg = "<div style='background:#fef3c7;color:#92400e;padding:10px;border-radius:7px;margin-bottom:14px;'>⚠️ A payment for <strong>$pay_month</strong> already exists for this student and batch.</div>";
         } else {
-            $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Error: " . mysqli_error($conn) . "</div>"; // Shows the actual MySQL error if the insert failed
+            $ins = mysqli_query($conn, "INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES ($pay_student,$pay_batch,$pay_amount,'$pay_month','$rec_no','$pay_date','approved')"); // Receptionist-recorded payments are auto-approved (cash/in-person payments, unlike student-submitted ones which start pending)
+            // Self-heal: a missing `student` subtype row (Issue 4's root cause)
+            // would make this insert fail on the student_id foreign key.
+            if (!$ins) {
+                ensure_subtype_row($conn, $pay_student, 'student');
+                $ins = mysqli_query($conn, "INSERT INTO payment (student_id, batch_id, amount, pay_month, receipt_no, pay_date, status) VALUES ($pay_student,$pay_batch,$pay_amount,'$pay_month','$rec_no','$pay_date','approved')");
+            }
+            if ($ins) {
+                $new_id  = mysqli_insert_id($conn); // The id of the payment row just inserted, needed to build the print-receipt link
+                $pay_msg = "<div style='background:#dcfce7;color:#166534;padding:10px;border-radius:7px;margin-bottom:14px;'>✅ Payment recorded! Receipt: <strong>$rec_no</strong> &nbsp; <a href='print_receipt.php?id=$new_id' target='_blank' class='btn btn-small btn-primary'>🖨️ Print Receipt</a></div>";
+            } else {
+                $pay_msg = "<div style='background:#fee2e2;color:#991b1b;padding:10px;border-radius:7px;margin-bottom:14px;'>❌ Error: " . mysqli_error($conn) . "</div>"; // Shows the actual MySQL error if the insert failed
+            }
         }
     }
 }
@@ -236,9 +283,9 @@ $pay_history   = mysqli_query($conn, "SELECT p.*, u.full_name AS student_name, b
                     <div class="form-row">
                         <div class="form-group"><label>Password *</label><input type="text" name="reg_password" placeholder="Set initial password" required></div>
                         <!-- Plain text here is fine — it's only what the receptionist types; the value is hashed before it ever reaches the database -->
-                        <div class="form-group"><label>Phone</label><input type="text" name="reg_phone" placeholder="077 xxx xxxx"></div>
+                        <div class="form-group"><label>Phone *</label><input type="text" name="reg_phone" placeholder="10 digit phone number" required></div>
                     </div>
-                    <div class="form-group"><label>Email</label><input type="email" name="reg_email" placeholder="student@email.com"></div>
+                    <div class="form-group"><label>Email *</label><input type="email" name="reg_email" placeholder="student@email.com" required></div>
                     <button type="submit" name="register_student" class="btn btn-primary">✅ Register Student</button>
                 </form>
             </div>

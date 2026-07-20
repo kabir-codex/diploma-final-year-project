@@ -16,6 +16,9 @@ session_start();
 // ------------------------------------------------------------
 require '../../config/db.php';
 
+// Provides is_valid_phone(), is_valid_email(), ensure_subtype_row()
+require '../../config/helpers.php';
+
 
 // ------------------------------------------------------------
 // AUTHORIZATION CHECK
@@ -130,26 +133,62 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     // --------------------------------------------------------
-    // UPDATE DATABASE
+    // VALIDATION CHECK
     // --------------------------------------------------------
-    mysqli_query(
-        $conn,
-        "UPDATE users SET
-            full_name='$fullname',
-            email='$email',
-            phone='$phone',
-            role='$role',
-            status='$status'
-            $pass_sql
-         WHERE userID=$id"
-    );
+    // Same rules as Add User: email and phone are mandatory, and the
+    // phone number must be exactly 10 digits.
+    if (empty($fullname) || empty($email) || empty($phone)) {
 
-    // Redirect after update
-    header(
-        "Location: ../../../frontend/pages/dashboard.php?msg=User+updated"
-    );
+        $error = "Name, email and phone are all required.";
 
-    exit();
+    } elseif (!is_valid_email($email)) {
+
+        $error = "Please enter a valid email address.";
+
+    } elseif (!is_valid_phone($phone)) {
+
+        $error = "Phone number must be exactly 10 digits (numbers only).";
+
+    } else {
+
+        // ----------------------------------------------------
+        // UPDATE DATABASE
+        // ----------------------------------------------------
+        mysqli_query(
+            $conn,
+            "UPDATE users SET
+                full_name='$fullname',
+                email='$email',
+                phone='$phone',
+                role='$role',
+                status='$status'
+                $pass_sql
+             WHERE userID=$id"
+        );
+
+        // ----------------------------------------------------
+        // KEEP THE SUBTYPE ROW IN SYNC WITH THE (POSSIBLY NEW) ROLE
+        // ----------------------------------------------------
+        // BUG FIX: previously, changing a user's role here (e.g. an
+        // existing account promoted to 'student' or 'parent') never
+        // created the matching row in that role's subtype table
+        // (student/parent/lecturer/...). The account would look fine
+        // in the Users list, but every later action that treated them
+        // as that role — enrolling them in a batch, recording a
+        // payment for them, linking a parent to a student — failed
+        // with a foreign key constraint error, because the subtype
+        // table had no row for them. ensure_subtype_row() is safe to
+        // call every time (INSERT IGNORE), so it also self-heals any
+        // account that was already in this broken state.
+        ensure_subtype_row($conn, $id, $role);
+
+        // Redirect after update
+        header(
+            "Location: ../../../frontend/pages/dashboard.php?msg=User+updated"
+        );
+
+        exit();
+    }
 }
 
 
@@ -180,6 +219,12 @@ PAGE UI
         ✏️ Edit User: <?php echo htmlspecialchars($user['full_name']); ?>
     </h2>
 
+    <!-- Error Message -->
+    <?php if ($error): ?>
+        <div style="background:#fee2e2; color:#991b1b; padding:12px; border-radius:8px; margin-bottom:16px;">
+            ❌ <?php echo htmlspecialchars($error); ?>
+        </div>
+    <?php endif; ?>
 
     <!-- Form Card -->
     <div class="card">
@@ -198,7 +243,7 @@ PAGE UI
                     <input
                         type="text"
                         name="full_name"
-                        value="<?php echo htmlspecialchars($user['full_name']); ?>"
+                        value="<?php echo htmlspecialchars($_POST['full_name'] ?? $user['full_name']); ?>"
                         required
                     >
 
@@ -230,13 +275,14 @@ PAGE UI
                 <div class="form-group">
 
                     <label>
-                        Email
+                        Email *
                     </label>
 
                     <input
                         type="email"
                         name="email"
-                        value="<?php echo htmlspecialchars($user['email']); ?>"
+                        value="<?php echo htmlspecialchars($_POST['email'] ?? $user['email']); ?>"
+                        required
                     >
 
                 </div>
@@ -244,13 +290,15 @@ PAGE UI
                 <div class="form-group">
 
                     <label>
-                        Phone
+                        Phone *
                     </label>
 
                     <input
                         type="text"
                         name="phone"
-                        value="<?php echo htmlspecialchars($user['phone']); ?>"
+                        placeholder="10 digit phone number"
+                        value="<?php echo htmlspecialchars($_POST['phone'] ?? $user['phone']); ?>"
+                        required
                     >
 
                 </div>

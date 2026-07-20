@@ -19,6 +19,9 @@ session_start();
 // Provides $conn (MySQL connection)
 require '../../config/db.php';
 
+// Provides is_valid_phone(), is_valid_email(), ensure_subtype_row()
+require '../../config/helpers.php';
+
 
 // ------------------------------------------------------------
 // AUTHORIZATION CHECK
@@ -105,11 +108,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         empty($username) ||
         empty($password_raw) ||
         empty($fullname) ||
-        empty($role)
+        empty($role) ||
+        empty($email) ||
+        empty($phone)
     ) {
 
         $error =
-            "Username, password, name and role are required.";
+            "Username, password, name, role, email and phone are all required.";
+
+    } elseif (!is_valid_email($email)) {
+
+        $error =
+            "Please enter a valid email address.";
+
+    } elseif (!is_valid_phone($phone)) {
+
+        $error =
+            "Phone number must be exactly 10 digits (numbers only).";
 
     } else {
 
@@ -169,29 +184,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // subtype row (subtype's own ID = users.userID, same value).
                 $new_user_id = mysqli_insert_id($conn);
 
-                // Map each role to its subtype table AND that table's
-                // own primary key column name (each subtype table names
-                // its primary key differently, e.g. studentID, lecturerID).
-                $subtype_tables = [
-                    'student'      => ['table' => 'student',      'pk' => 'studentID'],
-                    'lecturer'     => ['table' => 'lecturer',     'pk' => 'lecturerID'],
-                    'parent'       => ['table' => 'parent',       'pk' => 'parentID'],
-                    'receptionist' => ['table' => 'receptionist', 'pk' => 'receptionistID'],
-                    'manager'      => ['table' => 'manager',      'pk' => 'managerID'],
-                    'admin'        => ['table' => 'admin',        'pk' => 'adminID'],
-                    'director'     => ['table' => 'director',     'pk' => 'directorID'],
-                ];
-
-                if (isset($subtype_tables[$role])) {
-
-                    $subtype_table = $subtype_tables[$role]['table'];
-                    $subtype_pk    = $subtype_tables[$role]['pk'];
-
-                    $insert_ok = mysqli_query(
-                        $conn,
-                        "INSERT INTO $subtype_table ($subtype_pk) VALUES ($new_user_id)"
-                    );
-                }
+                // Create the matching subtype row (student, lecturer,
+                // parent, etc.) for whichever role was picked — shared
+                // helper, also used by edit_user.php when a role changes.
+                $insert_ok = ensure_subtype_row($conn, $new_user_id, $role);
             }
 
             if ($insert_ok) {
@@ -369,12 +365,13 @@ PAGE UI
                 <div class="form-group">
 
                     <label>
-                        Email
+                        Email *
                     </label>
 
                     <input
                         type="email"
                         name="email"
+                        required
                     >
 
                 </div>
@@ -382,12 +379,14 @@ PAGE UI
                 <div class="form-group">
 
                     <label>
-                        Phone
+                        Phone *
                     </label>
 
                     <input
                         type="text"
                         name="phone"
+                        placeholder="10 digit phone number"
+                        required
                     >
 
                 </div>
