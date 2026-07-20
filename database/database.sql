@@ -578,3 +578,57 @@ CREATE TABLE IF NOT EXISTS `class_sessions` (
   FOREIGN KEY (`lecturer_id`) REFERENCES `lecturer`(`lecturerID`) ON DELETE CASCADE,
   FOREIGN KEY (`batch_id`)    REFERENCES `batch`(`batchID`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================
+--  BUGFIX MIGRATION -- backfill missing subtype rows
+-- ------------------------------------------------------------
+--  Root cause of several reported bugs (Parent linking failing,
+--  "Cannot add or update a child row" on payments, existing students
+--  not seeing a batch they were just assigned to): edit_user.php used
+--  to update a user's role WITHOUT ever creating that role's matching
+--  subtype row (student/lecturer/parent/receptionist/manager/admin/
+--  director). Any account whose role was ever changed through the
+--  Edit User screen (rather than set at creation time) can be missing
+--  its subtype row, which then breaks every foreign key that expects
+--  it (enrollments, payment, parent_student, etc.).
+--
+--  edit_user.php now creates this row itself going forward. This
+--  block is the one-time (and safe to re-run) repair for any accounts
+--  that were already left in that broken state before the fix -- it
+--  only INSERTs a row for a user who is missing one; it never touches
+--  an account that already has its subtype row.
+-- ============================================================
+INSERT INTO student (studentID)
+    SELECT u.userID FROM users u
+    LEFT JOIN student s ON s.studentID = u.userID
+    WHERE u.role = 'student' AND s.studentID IS NULL;
+
+INSERT INTO lecturer (lecturerID)
+    SELECT u.userID FROM users u
+    LEFT JOIN lecturer l ON l.lecturerID = u.userID
+    WHERE u.role = 'lecturer' AND l.lecturerID IS NULL;
+
+INSERT INTO parent (parentID)
+    SELECT u.userID FROM users u
+    LEFT JOIN parent p ON p.parentID = u.userID
+    WHERE u.role = 'parent' AND p.parentID IS NULL;
+
+INSERT INTO receptionist (receptionistID)
+    SELECT u.userID FROM users u
+    LEFT JOIN receptionist r ON r.receptionistID = u.userID
+    WHERE u.role = 'receptionist' AND r.receptionistID IS NULL;
+
+INSERT INTO manager (managerID)
+    SELECT u.userID FROM users u
+    LEFT JOIN manager m ON m.managerID = u.userID
+    WHERE u.role = 'manager' AND m.managerID IS NULL;
+
+INSERT INTO admin (adminID)
+    SELECT u.userID FROM users u
+    LEFT JOIN admin a ON a.adminID = u.userID
+    WHERE u.role = 'admin' AND a.adminID IS NULL;
+
+INSERT INTO director (directorID)
+    SELECT u.userID FROM users u
+    LEFT JOIN director d ON d.directorID = u.userID
+    WHERE u.role = 'director' AND d.directorID IS NULL;
