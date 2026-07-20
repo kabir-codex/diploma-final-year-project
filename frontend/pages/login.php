@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "Please enter both username and password.";
     } else {
 
-        // Escape the username before using it in SQL — prevents SQL injection
+        // escape the username before using it in SQL — prevents the sql injection
         $username_safe = mysqli_real_escape_string($conn, $username);
 
         // Find the user by USERNAME ONLY. Password is NOT checked in this SQL —
